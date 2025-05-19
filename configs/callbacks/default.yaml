@@ -1,0 +1,36 @@
+# 默认配置继承
+defaults:
+  - model_checkpoint.yaml  # 模型检查点配置
+  # - early_stopping.yaml  # 早停配置（已注释）
+  # - model_summary.yaml   # 模型摘要配置（已注释）
+  # - rich_progress_bar.yaml  # 进度条配置（已注释）
+  - _self_  # 当前配置文件
+
+# 模型检查点配置
+model_checkpoint:
+  # 检查点保存目录
+  dirpath: ${paths.output_dir}/checkpoints
+  # 检查点文件名格式：epoch_001, epoch_002等
+  filename: "epoch_{epoch:03d}"
+  # 监控指标：验证集上的宏观SELD评分
+  monitor: "val/macro/SELD_scr"
+  # 监控模式：min表示指标越小越好
+  mode: "min"
+  # 是否保存最后一个检查点
+  save_last: True
+  # 是否自动在文件名中插入指标名称
+  auto_insert_metric_name: False
+
+# 早停配置
+early_stopping:
+  # 监控指标：验证集上的宏观SELD评分
+  monitor: "val/macro/SELD_scr"
+  # 容忍轮数：如果指标在100轮内没有改善，则停止训练
+  patience: 100
+  # 监控模式：min表示指标越小越好
+  mode: "min"
+
+# 模型摘要配置
+model_summary:
+  # 模型摘要的最大深度，-1表示显示所有层
+  max_depth: -1

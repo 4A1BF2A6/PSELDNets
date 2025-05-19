@@ -1,0 +1,68 @@
+# 批次大小
+batch_size: 128
+
+# 主干网络类型
+backbone: HTSAT
+# 解码器类型：可选gru、conformer或null(不使用解码器)
+decoder: null 
+# 解码器层数
+num_decoder_layers: 2
+
+# 模型参数配置
+kwargs:
+  # 频谱图大小
+  spec_size: 256
+  # 图像块大小
+  patch_size: 4
+  # 图像块步长
+  patch_stride: [4, 4]
+  # 嵌入维度
+  embed_dim: 96
+  # 各阶段Transformer层数
+  depths: [2, 2, 6, 2]
+  # 各阶段注意力头数
+  num_heads: [4, 8, 16, 32]
+  # 窗口大小
+  window_size: 8
+  # MLP扩展比例
+  mlp_ratio: 4
+  # 是否使用QKV偏置
+  qkv_bias: true
+  # 基础dropout率
+  drop_rate: 0.
+  # 注意力dropout率
+  attn_drop_rate: 0.
+  # 路径dropout率
+  drop_path_rate: 0.1
+  # 是否使用绝对位置编码
+  ape: false
+  # 是否对patch进行归一化
+  patch_norm: true
+  # MLP前的归一化类型：层归一化(ln)或批归一化(bn)
+  norm_before_mlp: ln 
+  # 是否使用AudioSet预训练
+  audioset_pretrain: true
+  # 预训练模型路径
+  pretrained_path: ckpts/HTSAT-fullset-imagenet-768d-32000hz.ckpt
+
+# 优化器配置
+optimizer:
+  # 优化器类型：AdamW
+  method: AdamW
+  # 优化器参数
+  kwargs: {lr: 0.0001, amsgrad: false}
+
+# 学习率调度器配置
+lr_scheduler:
+  # 调度器类型：StepLR(步进式学习率调整)
+  method: StepLR 
+  # 其他可选调度器：
+  # CosineAnnealingLR: 余弦退火
+  # MultiStepLR: 多步进式
+  # kwargs: {milestones: [70, 85], gamma: 0.1} # MultiStepLR参数
+  # kwargs: {T_max: 30, eta_min: 5e-6} # CosineAnnealingLR参数
+  # StepLR参数：每40个epoch将学习率乘以0.1
+  kwargs: {step_size: 40, gamma: 0.1} 
+
+# 预热步数
+num_warmup_steps: 5

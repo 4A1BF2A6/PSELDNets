@@ -1,0 +1,18 @@
+# 工作空间目录路径
+workspace_dir: ./
+
+# 数据集目录路径
+dataset_dir: ./datasets
+
+# HDF5文件存储目录路径
+# HDF5是一种用于存储大型科学数据的文件格式
+hdf5_dir: ./_hdf5
+
+# 日志文件存储目录路径
+log_dir: ./logs/
+
+# 输出目录路径，由hydra动态创建
+# 路径生成模式在 `configs/hydra/default.yaml` 中指定
+# 用于存储运行过程中生成的所有文件，如检查点(ckpts)和评估指标(metrics)
+output_dir: ${hydra:runtime.output_dir}
+

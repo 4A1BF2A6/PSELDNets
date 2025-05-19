@@ -1,0 +1,61 @@
+# 音频类型：foa (First Order Ambisonics，一阶环绕声)
+audio_type: foa
+
+# 音频特征类型：logmelIV (对数梅尔频谱图)
+audio_feature: logmelIV
+
+# 音频处理参数
+sample_rate: 24000  # 采样率：24kHz
+nfft: 1024         # FFT点数
+n_mels: 64         # 梅尔滤波器组数量
+hoplen: 240        # 帧移
+window: hann       # 窗函数类型：汉宁窗
+
+# 数据分块参数
+train_chunklen_sec: 10  # 训练数据块长度：10秒
+train_hoplen_sec: 10    # 训练数据块步长：10秒
+test_chunklen_sec: 10   # 测试数据块长度：10秒
+test_hoplen_sec: 10     # 测试数据块步长：10秒
+
+# 数据集配置：按录音房间划分
+train_dataset:
+  # 训练集1：20000个样本，1-2个重叠音源
+  train20000_ov1_1: [fold0_room0]
+  # 训练集2：10000个样本，2-3个重叠音源
+  train10000_ov2_1: [fold0_room0]
+  # 训练集3：3500个样本，3个重叠音源
+  train3500_ov3_1: [fold0_room0]
+  # 训练集4：20000个样本，1-2个重叠音源
+  train20000_ov1_2: [fold0_room0]
+  # 训练集5：10000个样本，2-3个重叠音源
+  train10000_ov2_2: [fold0_room0]
+  # 训练集6：3500个样本，3个重叠音源
+  train3500_ov3_2: [fold0_room0]
+
+valid_dataset:
+  # 验证集1：1800个样本，1-2个重叠音源
+  test1800_ov1: 
+    [fold1_room1, fold1_room2, fold1_room3, fold1_room4, fold1_room5,
+     fold1_room6, fold1_room7, fold1_room8, fold1_room9]
+  # 验证集2：900个样本，2-3个重叠音源
+  test900_ov2:
+    [fold1_room1, fold1_room2, fold1_room3, fold1_room4, fold1_room5,
+     fold1_room6, fold1_room7, fold1_room8, fold1_room9]
+  # 验证集3：360个样本，3个重叠音源
+  test360_ov3:
+    [fold1_room1, fold1_room2, fold1_room3, fold1_room4, fold1_room5,
+     fold1_room6, fold1_room7, fold1_room8, fold1_room9]
+
+test_dataset:
+  # 测试集1：1800个样本，1-2个重叠音源
+  test1800_ov1: 
+    [fold1_room1, fold1_room2, fold1_room3, fold1_room4, fold1_room5,
+     fold1_room6, fold1_room7, fold1_room8, fold1_room9]
+  # 测试集2：900个样本，2-3个重叠音源
+  test900_ov2:
+    [fold1_room1, fold1_room2, fold1_room3, fold1_room4, fold1_room5,
+     fold1_room6, fold1_room7, fold1_room8, fold1_room9]
+  # 测试集3：360个样本，3个重叠音源
+  test360_ov3:
+    [fold1_room1, fold1_room2, fold1_room3, fold1_room4, fold1_room5,
+     fold1_room6, fold1_room7, fold1_room8, fold1_room9]

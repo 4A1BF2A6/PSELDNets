@@ -1,0 +1,17 @@
+# 继承default.yaml的配置
+defaults:
+  - default.yaml
+
+# 使用分布式数据并行(DDP)策略
+strategy: ddp
+
+# 使用GPU加速器
+accelerator: gpu
+# 使用2个GPU设备
+devices: 2
+# 使用1个计算节点
+num_nodes: 1
+# 同步批归一化，确保在分布式训练中批归一化层的统计信息正确
+sync_batchnorm: True
+# 不使用分布式采样器
+use_distributed_sampler: False

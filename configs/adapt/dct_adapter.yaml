@@ -1,0 +1,17 @@
+# DCT适配器配置文件
+# 这个配置文件定义了使用离散余弦变换增强频率信息的适配器
+
+method: adapter_dct
+
+adapt_kwargs:
+  position: [MlpAdapter,SpatialAdapter]  # 同时在MLP层和注意力层后添加适配器
+  type: adapter_dct
+  mlp_ratio: 0.5
+  act_layer: gelu
+  adapter_scalar: 0.1
+  dct_kernel_size: 3  # 降低内核大小避免维度不匹配
+  dct_groups: 1
+
+# 应用在HTSAT中的配置
+# proj_type: 'linear' # 投影类型
+# use_conv: False # 是否使用卷积投影 

@@ -1,0 +1,38 @@
+# @package _global_
+
+# 默认调试设置，运行1个完整轮次
+# 其他调试配置可以继承此配置
+
+# 覆盖任务名称，使调试日志存储在单独的文件夹中
+task_name: debug
+
+# 调试期间禁用回调和日志记录器
+# callbacks: null
+# logger: null
+
+trainer:
+  # 最大训练轮数
+  max_epochs: 150
+  
+  # 使用GPU加速器
+  # 注意：调试器通常不适用于GPU
+  accelerator: gpu 
+  
+  # 使用1个GPU设备
+  # 注意：调试器通常不适用于多进程
+  devices: 1 
+  
+  # 启用异常检测
+  # 当在任何张量中检测到NaN或+/-inf时抛出异常
+  detect_anomaly: true 
+  
+  # 在开始训练前运行所有验证批次进行完整性检查
+  num_sanity_val_steps: -1 
+  
+  # 限制验证批次数为3个批次
+  limit_val_batches: 3
+  
+  # 限制训练批次数为总批次的30%
+  limit_train_batches: 0.3
+
+

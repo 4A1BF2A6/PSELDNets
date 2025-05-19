@@ -1,0 +1,37 @@
+# 指定使用PyTorch Lightning的Trainer类
+_target_: lightning.pytorch.trainer.Trainer
+
+# 设置输出根目录，使用paths配置中的output_dir
+default_root_dir: ${paths.output_dir}
+
+# 最小训练轮数，防止过早停止
+min_epochs: 1 
+# 最大训练轮数
+max_epochs: 50
+
+# 使用GPU加速器
+accelerator: gpu
+# 使用1个GPU设备
+devices: 1
+# 分布式训练策略（已注释）
+# strategy: ddp
+# 是否使用分布式采样器（已注释）
+# use_distributed_sampler: False
+
+# 使用混合精度训练以提升速度
+# 32-true表示使用32位精度
+precision: 32-true
+
+# 每N个训练轮次执行一次验证
+check_val_every_n_epoch: 1
+
+# 在开始训练前运行n个验证批次进行完整性检查
+# 设置为-1则运行所有验证数据加载器中的所有批次
+num_sanity_val_steps: 0
+
+# 设置为True以确保确定性结果
+# 会使训练变慢，但比仅设置随机种子提供更好的可重复性
+deterministic: False
+
+# 梯度裁剪值，防止梯度爆炸
+gradient_clip_val: 1.0
