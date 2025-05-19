@@ -1,47 +1,53 @@
-# specify here default configuration
-# order of defaults determines the order in which configs override each other
+# 指定默认配置
+# 默认配置的顺序决定了配置之间的覆盖顺序
 defaults:
-  - hydra: default.yaml
-  - logger: tensorboard.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
-  - paths: default.yaml
-  - augment: default.yaml
-  - data: default.yaml
-  - model: htsat.yaml
-  - loss: accdoa.yaml
-  - extras: default.yaml
-  - callbacks: default.yaml
-  - trainer: default.yaml
-  - task: seld.yaml
-  - adapt: default.yaml
-  - _self_
+  - hydra: default.yaml          # Hydra基础配置
+  - logger: tensorboard.yaml     # 日志记录器配置，也可以通过命令行设置
+  - paths: default.yaml          # 路径配置
+  - augment: default.yaml        # 数据增强配置
+  - data: default.yaml           # 数据集配置
+  - model: htsat.yaml           # 模型配置，使用HTSAT模型
+  - loss: accdoa.yaml           # 损失函数配置，使用ACCDOA损失
+  - extras: default.yaml         # 额外配置
+  - callbacks: default.yaml      # 回调函数配置
+  - trainer: default.yaml        # 训练器配置
+  - task: seld.yaml             # 任务配置，SELD任务
+  - adapt: default.yaml          # 适配器配置
+  - _self_                      # 当前配置文件
 
-  # experiment configs allow for version control of specific hyperparameters
-  # e.g. best hyperparameters for given model and datamodule
+  # 实验配置允许对特定超参数进行版本控制
+  # 例如：给定模型和数据模块的最佳超参数
   - experiment: null
 
-  # debugging config (enable through command line, e.g. `python train.py debug=default)
+  # 调试配置（通过命令行启用，例如：`python train.py debug=default`）
   - debug: null
 
-# task name, determines output directory path
+# 任务名称，决定输出目录路径
 task_name: ${model.method}_${model.backbone}_infer
+# 实验名称，使用时间戳
 experiment_name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
 
-mode: valid # valid | test
+# 推理模式：valid(验证) | test(测试)
+mode: valid
 
+# 数据加载的工作进程数
 num_workers: 8
 
+# 声音事件检测(SED)的阈值
 sed_threshold: 0.5
-# sed_threshold: [0.3, 0.5, 0.1, 0.5, 0.5, 0.3, 0.5, 0.5, 0.5, 0.5, 0.3, 0.5, 0.5, 0.3] # 14 classes for L3DAS22
-# sed_threshold: [0.5, 0.5, 0.3, 0.3, 0.5, 0.5, 0.5, 0.1, 0.1, 0.3, 0.5, 0.3] # 12 classes for DCASE2021
-# sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5] # 13 classes for STARSS23
+# 以下是不同数据集的SED阈值配置（已注释）
+# sed_threshold: [0.3, 0.5, 0.1, 0.5, 0.5, 0.3, 0.5, 0.5, 0.5, 0.5, 0.3, 0.5, 0.5, 0.3] # L3DAS22数据集的14个类别
+# sed_threshold: [0.5, 0.5, 0.3, 0.3, 0.5, 0.5, 0.5, 0.1, 0.1, 0.3, 0.5, 0.3] # DCASE2021数据集的12个类别
+# sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5] # STARSS23数据集的13个类别
 
-# simply provide checkpoint path to resume training
+# 检查点路径，用于恢复训练
 ckpt_path: null
 
-# seed for random number generators in pytorch, numpy and python.random
-seed: 42
+# 随机数生成器的种子，用于PyTorch、NumPy和Python.random
+seed: 2025
 
-# compile model for faster training with pytorch 2.0
+# 是否使用PyTorch 2.0的模型编译功能来加速训练
 compile: false
 
+# 后处理配置
 post_processing: null

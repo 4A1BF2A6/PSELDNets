@@ -1,24 +1,27 @@
-# specify here default configuration
-# order of defaults determines the order in which configs override each other
+# 指定默认配置
+# 默认配置的顺序决定了配置之间的覆盖顺序
 defaults:
-  - data: default.yaml
-  - paths: default.yaml
-  - override hydra/launcher: joblib
-  - override hydra/hydra_logging: disabled  
-  - override hydra/job_logging: disabled 
-  - _self_
+  - data: default.yaml           # 数据集配置
+  - paths: default.yaml          # 路径配置
+  - override hydra/launcher: joblib  # 使用joblib作为任务启动器
+  - override hydra/hydra_logging: disabled  # 禁用Hydra日志记录
+  - override hydra/job_logging: disabled    # 禁用任务日志记录
+  - _self_                      # 当前配置文件
 
+# Hydra配置
 hydra:  
-  output_subdir: null  
+  output_subdir: null           # 输出子目录，设为null表示不创建子目录
   launcher:
-    n_jobs: 20
+    n_jobs: 20                  # 并行任务数量，设置为20个并行任务
   run:  
-    dir: .
+    dir: .                      # 运行目录，设置为当前目录
 
-dataset: train3500_ov3_1
-dataset_type: dev
-wav_format: .flac
-mode: extract_data # extract_data
+# 数据集配置
+dataset: train3500_ov3_1        # 数据集名称，使用train3500_ov3_1数据集
+dataset_type: dev               # 数据集类型，开发集
+wav_format: .flac               # 音频文件格式，使用FLAC格式
+mode: extract_data              # 处理模式，数据提取模式
 
-num_workers: 8
-cuda: True
+# 系统配置
+num_workers: 8                  # 数据加载的工作进程数
+cuda: True                      # 是否使用CUDA加速
