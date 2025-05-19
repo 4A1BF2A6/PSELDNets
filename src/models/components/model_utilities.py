@@ -226,14 +226,15 @@ class Mlp(nn.Module):
         main_path = self.fc2(main_path)
         
 
-        # current_aux_loss = torch.tensor(0.0, device=x.device) # 初始化本层的辅助损失
+        current_aux_loss = torch.tensor(0.0, device=x.device) # 初始化本层的辅助损失
 
         if self.adapter_instance is not None:
-            adapted_output = self.adapter_instance(main_path) # 适配器作用于 main_path
+            adapted_output, aux_loss = self.adapter_instance(main_path) # 适配器作用于 main_path
             main_path = main_path + adapted_output # 更新 main_path
-            # current_aux_loss += aux_loss_from_adapter
+            current_aux_loss += aux_loss
 
-        main_path = self.drop(main_path) # 在原始的 HTSAT Swin MLP 中，最后的drop在适配器之后    
+        main_path = self.drop(main_path) # 在原始的 HTSAT Swin MLP 中，最后的drop在适配器之后   
+         
         # return main_path # 原来的返回
         return main_path
 

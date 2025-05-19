@@ -51,21 +51,20 @@ def window_reverse(windows, window_size, H, W):
 
 
 class WindowAttention(nn.Module):
-    r""" Window based multi-head self attention (W-MSA) module with relative position bias.
-    It supports both of shifted and non-shifted window.
-    Args:
-        dim (int): Number of input channels.
-        window_size (tuple[int]): The height and width of the window.
-        num_heads (int): Number of attention heads.
-        qkv_bias (bool, optional):  If True, add a learnable bias to query, key, value. Default: True
-        qk_scale (float | None, optional): Override default qk scale of head_dim ** -0.5 if set
-        attn_drop (float, optional): Dropout ratio of attention weight. Default: 0.0
-        proj_drop (float, optional): Dropout ratio of output. Default: 0.0
-        ADAPT_CONFIG should be passed or accessible here
+    """基于窗口的多头自注意力(W-MSA)模块，支持相对位置偏置。
+    支持移位和非移位窗口。
+    参数:
+        dim (int): 输入通道数
+        window_size (tuple[int]): 窗口的高度和宽度
+        num_heads (int): 注意力头的数量
+        qkv_bias (bool, optional): 是否在query、key、value中添加可学习的偏置
+        qk_scale (float | None, optional): 覆盖默认的qk缩放比例 head_dim ** -0.5
+        attn_drop (float, optional): 注意力权重的dropout比率
+        proj_drop (float, optional): 输出的dropout比率
+        ADAPT_CONFIG: 适配器配置参数
     """
 
     def __init__(self, dim, window_size, num_heads, qkv_bias=True, qk_scale=None, attn_drop=0., proj_drop=0., ADAPT_CONFIG=None):
-
         super().__init__()
         self.dim = dim
         self.window_size = window_size  # Wh, Ww
@@ -73,55 +72,60 @@ class WindowAttention(nn.Module):
         head_dim = dim // num_heads
         self.scale = qk_scale or head_dim ** -0.5
 
-        # define a parameter table of relative position bias
+        # 定义相对位置偏置的参数表
         self.relative_position_bias_table = nn.Parameter(
             torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads))  # 2*Wh-1 * 2*Ww-1, nH
 
-        # get pair-wise relative position index for each token inside the window
+        # 获取窗口内每个token的相对位置索引
         coords_h = torch.arange(self.window_size[0])
         coords_w = torch.arange(self.window_size[1])
         coords = torch.stack(torch.meshgrid([coords_h, coords_w], indexing='ij'))  # 2, Wh, Ww
         coords_flatten = torch.flatten(coords, 1)  # 2, Wh*Ww
         relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]  # 2, Wh*Ww, Wh*Ww
         relative_coords = relative_coords.permute(1, 2, 0).contiguous()  # Wh*Ww, Wh*Ww, 2
-        relative_coords[:, :, 0] += self.window_size[0] - 1  # shift to start from 0
+        relative_coords[:, :, 0] += self.window_size[0] - 1  # 将索引从0开始
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         relative_position_index = relative_coords.sum(-1)  # Wh*Ww, Wh*Ww
         self.register_buffer("relative_position_index", relative_position_index)
 
-        # Ensure ADAPT_CONFIG is available. If not passed, initialize to empty dict to avoid errors.
+        # 确保ADAPT_CONFIG可用，如果未传入则初始化为空字典
         if ADAPT_CONFIG is None:
             ADAPT_CONFIG = {}
 
-        # self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
-        self.qkv = get_linear_layer(in_features = dim, 
-                                    out_features = dim * 3, 
-                                    bias=qkv_bias, ADAPT_CONFIG=ADAPT_CONFIG)
+        # 定义QKV投影层
+        self.qkv = get_linear_layer(in_features=dim, 
+                                  out_features=dim * 3, 
+                                  bias=qkv_bias, 
+                                  ADAPT_CONFIG=ADAPT_CONFIG)
         self.attn_drop = nn.Dropout(attn_drop)
-        # self.proj = nn.Linear(dim, dim)
-        self.proj = get_linear_layer(in_features = dim, 
-                                     out_features = dim, ADAPT_CONFIG=ADAPT_CONFIG)
+        
+        # 定义输出投影层
+        self.proj = get_linear_layer(in_features=dim, 
+                                   out_features=dim, 
+                                   ADAPT_CONFIG=ADAPT_CONFIG)
         self.proj_drop = nn.Dropout(proj_drop)
 
+        # 初始化相对位置偏置表
         trunc_normal_(self.relative_position_bias_table, std=.02)
         self.softmax = nn.Softmax(dim=-1)
 
+        # 获取适配器配置
         adapt_kwargs_global = ADAPT_CONFIG.get('adapt_kwargs', {})
         adapter_method = ADAPT_CONFIG.get('method', '')
         adapter_type = adapt_kwargs_global.get('type', '')
         adapter_position = adapt_kwargs_global.get('position', [])
         
-        self.adapter_instance = None # Unified adapter instance
+        self.adapter_instance = None  # 统一的适配器实例
 
-        print('==========WindowAttention Initialization=============')
-        print(f'ADAPT_CONFIG method: {adapter_method}')
-        print(f'Global adapt_kwargs type: {adapter_type}')
-        print(f'Global adapt_kwargs position: {adapter_position}')
+        print('==========WindowAttention初始化=============')
+        print(f'ADAPT_CONFIG方法: {adapter_method}')
+        print(f'全局adapt_kwargs类型: {adapter_type}')
+        print(f'全局adapt_kwargs位置: {adapter_position}')
 
-
+        # 根据配置初始化不同类型的适配器
         if 'SpatialAdapter' in adapter_position:
-            if adapter_type == 'adapter': # Original simple adapter
+            if adapter_type == 'adapter':  # 原始简单适配器
                 print("启用的是 Adapter for WindowAttention")
                 from models.components.model_utilities_adapt import Adapter
                 self.adapter_instance = Adapter(dim, **adapt_kwargs_global)
@@ -130,29 +134,30 @@ class WindowAttention(nn.Module):
                 from models.components.model_utilities_adapt import DCTAdapter
                 self.adapter_instance = DCTAdapter(
                     in_features=dim,
-                    **adapt_kwargs_global # Pass all relevant kwargs
+                    **adapt_kwargs_global
                 )
-            elif adapter_type == 'adapter_frequency': # Assuming adapter_dct_freq maps to adapter_frequency
+            elif adapter_type == 'adapter_frequency':
                 print("启用的是 DCTFrequencyAdapter for WindowAttention")
                 from models.components.model_utilities_adapt import DCTFrequencyAdapter
                 self.adapter_instance = DCTFrequencyAdapter(
                     in_features=dim,
-                    **adapt_kwargs_global # Pass all relevant kwargs
+                    **adapt_kwargs_global
                 )
             elif adapter_type == 'mixture_existing':
                 print("启用的是 混合适配器 for WindowAttention")
                 from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
+                # 获取各种配置参数
                 experts_config = adapt_kwargs_global.get('experts_config', None)
                 dct_expert_config = adapt_kwargs_global.get('dct_expert_kwargs', {})
                 freq_expert_config = adapt_kwargs_global.get('freq_expert_kwargs', {})
                 adapter_config = adapt_kwargs_global.get('adapter_kwargs',{})
                 router_config = adapt_kwargs_global.get('router_kwargs', {})
-                gate_noise = adapt_kwargs_global.get('gate_noise_factor', 1.0) # Default from your Mlp example
-                aux_loss_coeff = adapt_kwargs_global.get('aux_loss_coeff', 0.01) # Default from your Mlp example
-                # numbers_of_experts = adapt_kwargs_global.get('numbers_of_experts', {})
+                gate_noise = adapt_kwargs_global.get('gate_noise_factor', 1.0)
+                aux_loss_coeff = adapt_kwargs_global.get('aux_loss_coeff', 0.01)
 
+                # 初始化混合适配器
                 self.adapter_instance = MixtureOfExistingAdapters(
-                    dim, # in_features
+                    dim,
                     experts_config=experts_config,
                     dct_adapter_kwargs=dct_expert_config,
                     freq_adapter_kwargs=freq_expert_config,
@@ -166,27 +171,32 @@ class WindowAttention(nn.Module):
         else:
             print("'SpatialAdapter' 不在适配器位置列表中。WindowAttention 将不会启用适配器。")
         
-        print('==========WindowAttention Initialization Complete=============')
-
+        print('==========WindowAttention初始化完成=============')
 
     def forward(self, x, mask=None):
         """
-        Args:
-            x: input features with shape of (num_windows*B, N, C)
-            mask: (0/-inf) mask with shape of (num_windows, Wh*Ww, Wh*Ww) or None
+        前向传播函数
+        参数:
+            x: 输入特征，形状为 (num_windows*B, N, C)
+            mask: 掩码，形状为 (num_windows, Wh*Ww, Wh*Ww) 或 None
         """
         B_, N, C = x.shape
+        # 计算QKV
         qkv = self.qkv(x).reshape(B_, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
 
+        # 缩放Q
         q = q * self.scale
+        # 计算注意力分数
         attn = (q @ k.transpose(-2, -1))
 
+        # 添加相对位置偏置
         relative_position_bias = self.relative_position_bias_table[self.relative_position_index.view(-1)].view(
             self.window_size[0] * self.window_size[1], self.window_size[0] * self.window_size[1], -1)  # Wh*Ww,Wh*Ww,nH
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
         attn = attn + relative_position_bias.unsqueeze(0)
 
+        # 应用掩码（如果存在）
         if mask is not None:
             nW = mask.shape[0]
             attn = attn.view(B_ // nW, nW, self.num_heads, N, N) + mask.unsqueeze(1).unsqueeze(0)
@@ -197,14 +207,13 @@ class WindowAttention(nn.Module):
 
         attn = self.attn_drop(attn)
 
+        # 计算输出
         x_main = (attn @ v).transpose(1, 2).reshape(B_, N, C)
         x_main = self.proj(x_main)
         
-        # current_aux_loss = torch.tensor(0.0, device=x_main.device)
-
-        # 使用混合适配器
+        # 应用适配器（如果存在）
         if self.adapter_instance is not None:
-            adapted_x_main = self.adapter_instance(x_main)
+            adapted_x_main, aux_loss = self.adapter_instance(x_main)
             x_main = x_main + adapted_x_main
             # if aux_loss_from_adapter is not None:
             #     current_aux_loss += aux_loss_from_adapter
@@ -213,6 +222,7 @@ class WindowAttention(nn.Module):
         return x_main, attn
 
     def extra_repr(self):
+        """返回模块的额外表示信息"""
         return f'dim={self.dim}, window_size={self.window_size}, num_heads={self.num_heads}'
 
 

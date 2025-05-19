@@ -12,6 +12,7 @@ class CosineTopKGate(nn.Module):
     """
     def __init__(self, model_dim, num_global_experts, k=1, fp32_gate=False, proj_dim=256, init_t=0.5, **options):
         super(CosineTopKGate, self).__init__()
+        # 选择top-k个专家，k=1时，选择最优专家，取全局专家和k中的较小值
         self.top_k = min(num_global_experts, int(k))
         self.fp32_gate = fp32_gate # 是否使用FP32进行门控计算
         # 可学习的温度参数，用于调整logits的缩放
@@ -20,7 +21,7 @@ class CosineTopKGate(nn.Module):
         self.cosine_projector = nn.Linear(model_dim, proj_dim)
         # 相似性矩阵，每列代表一个专家的原型向量
         self.sim_matrix = nn.Parameter(torch.randn(size=(proj_dim, num_global_experts)), requires_grad=True)
-        # 温度参数的最大钳位值，防止过大
+        # 温度参数的最大钳位值，防止过大，数值不稳定
         self.clamp_max = torch.log(torch.tensor(1.0 / 0.01)).item() 
         # 初始化相似性矩阵
         torch.nn.init.normal_(self.sim_matrix, 0, 0.01)

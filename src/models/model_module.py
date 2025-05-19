@@ -92,12 +92,12 @@ class SELDModelModule(BaseModelModule):
         loss_dict[self.loss.loss_type] = loss_dict[self.loss.loss_type]  # 确保主损失存在
         
         # 收集并添加辅助损失
-        aux_loss = 0.0
-        if hasattr(torch, 'global_aux_loss') and torch.global_aux_loss:
-            aux_loss = sum(torch.global_aux_loss)
-            torch.global_aux_loss = []  # 清空全局辅助损失列表
-            loss_dict['aux_loss'] = aux_loss
-            loss_dict[self.loss.loss_type] = loss_dict[self.loss.loss_type] + aux_loss
+        # aux_loss = 0.0
+        # if hasattr(torch, 'global_aux_loss') and torch.global_aux_loss:
+        #     aux_loss = sum(torch.global_aux_loss)
+        #     torch.global_aux_loss = []  # 清空全局辅助损失列表
+        #     loss_dict['aux_loss'] = aux_loss
+        #     loss_dict[self.loss.loss_type] = loss_dict[self.loss.loss_type] + aux_loss
         
         # 更新训练损失字典
         for key in loss_dict.keys():
