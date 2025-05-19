@@ -1,0 +1,11 @@
+code/
+logs/
+ckpts/
+datasets/
+hypothesis/
+_hdf5/
+*.h5
+*.pt
+*.pth
+*.log
+*.csv
