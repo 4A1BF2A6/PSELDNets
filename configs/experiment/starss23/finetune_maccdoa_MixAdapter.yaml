@@ -30,3 +30,7 @@ compile: false                                  # 不使用PyTorch 2.0编译功�
 
 # STARSS23特定配置
 # sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5]  # 为STARSS23的13个类别设置SED阈值
+
+# 后处理配置
+# post_processing: null
+# post_processing: ACS

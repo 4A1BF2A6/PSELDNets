@@ -1,3 +1,4 @@
+# python src/infer.py experiment=starss23_maccdoa ckpt_path=/workspace/pycharm_projects/PSELDNets-main/logs/multi_accdoa_HTSAT/runs/2025-05-07_20-24-32_dcase2023-finetune_maccdoa/checkpoints/epoch_017.ckpt model.kwargs.pretrained_path=null
 # 指定默认配置
 # 默认配置的顺序决定了配置之间的覆盖顺序
 defaults:
@@ -51,3 +52,5 @@ compile: false
 
 # 后处理配置
 post_processing: null
+# post_processing: ACS
+
