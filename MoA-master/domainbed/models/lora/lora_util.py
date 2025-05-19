@@ -73,72 +73,105 @@ def glorot_uniform(tensor: torch.Tensor):
 
 
 class CosineTopKGate(torch.nn.Module):
+    """基于余弦相似度的Top-K门控机制"""
 
     def __init__(self, model_dim, num_global_experts, k=1, fp32_gate=False, proj_dim=256, init_t=0.5, **options):
+        # 初始化父类
         super(CosineTopKGate, self).__init__()
+        # 设置要选择的专家数量，取全局专家数和k中的较小值
         self.top_k = min(num_global_experts, int(k))
+        # 是否使用fp32精度进行门控计算
         self.fp32_gate = fp32_gate
+        # 初始化温度参数，用于控制softmax的平滑程度
         self.temperature = torch.nn.Parameter(torch.log(torch.full([1], 1.0 / init_t)), requires_grad=True)
+        # 创建余弦投影层，将输入特征投影到较低维度
         self.cosine_projector = torch.nn.Linear(model_dim, proj_dim)
+        # 创建相似度矩阵，用于存储每个专家的特征表示
         self.sim_matrix = torch.nn.Parameter(torch.randn(size=(proj_dim, num_global_experts)), requires_grad=True)
+        # 设置温度参数的最大值，防止数值不稳定
         self.clamp_max = torch.log(torch.tensor(1.0 / 0.01)).item()
+        # 使用正态分布初始化相似度矩阵
         torch.nn.init.normal_(self.sim_matrix, 0, 0.01)
 
+        # 检查额外的选项参数是否合法
         for opt in options:
             if opt not in ('capacity_factor', 'gate_noise'):
                 raise Exception('Unrecognized argument provided to Gating module: %s' % opt)
 
     def forward(self, x):
+        # 如果使用fp32精度
         if self.fp32_gate:
+            # 将输入转换为float32类型
             x = x.float()
+            # 将投影层转换为float32类型
             cosine_projector = self.cosine_projector.float()
+            # 将相似度矩阵转换为float32类型
             sim_matrix = self.sim_matrix.float()
         else:
+            # 使用原始精度
             cosine_projector = self.cosine_projector
             sim_matrix = self.sim_matrix
+        # 计算输入特征与专家特征之间的余弦相似度
         logits = torch.matmul(F.normalize(cosine_projector(x), dim=1), F.normalize(sim_matrix, dim=0))
+        # 计算并裁剪温度缩放因子
         logit_scale = torch.clamp(self.temperature, max=self.clamp_max).exp()
+        # 应用温度缩放
         logits = logits * logit_scale
+        # 返回最终的logits，用于后续的专家选择
         return logits
 
 
 class K_Linear_MoE_new_(nn.Linear, LoRALayer):
-    # LoRA implemented in a dense layer
+    """实现混合专家(Mixture of Experts)的LoRA线性层"""
+    
     def __init__(
         self,
-        in_features: int,
-        out_features: int,
-        r: int = 1,
-        lora_alpha: int = 1,
-        lora_dropout: float = 0.0,
-        fan_in_fan_out: bool = False,  # Set this to True if the layer to replace stores weight like (fan_in, fan_out)
-        merge_weights: bool = True,
+        in_features: int,  # 输入特征维度
+        out_features: int,  # 输出特征维度
+        r: int = 1,  # LoRA的秩
+        lora_alpha: int = 1,  # LoRA的缩放因子
+        lora_dropout: float = 0.0,  # LoRA的dropout率
+        fan_in_fan_out: bool = False,  # 是否转置权重矩阵
+        merge_weights: bool = True,  # 是否合并权重
         **kwargs,
     ):
+        # 初始化线性层
         nn.Linear.__init__(self, in_features, out_features, **kwargs)
+        # 初始化LoRA层
         LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, merge_weights=merge_weights)
 
+        # 设置权重矩阵是否需要转置
         self.fan_in_fan_out = fan_in_fan_out
         if fan_in_fan_out:
             self.weight.data = self.weight.data.T
-        phm_dim = 64
+            
+        # 设置PHM(Product of Hypermatrices)相关参数
+        phm_dim = 64  # PHM维度
         self.phm_dim = phm_dim
-        self._in_feats_per_axis = in_features // phm_dim
-        self._out_feats_per_axis = (out_features) // phm_dim
-        self.phm_rank = 1
-        self.n = 4
+        self._in_feats_per_axis = in_features // phm_dim  # 每个轴的输入特征数
+        self._out_feats_per_axis = (out_features) // phm_dim  # 每个轴的输出特征数
+        self.phm_rank = 1  # PHM秩
+        self.n = 4  # 专家数量
+        
+        # 初始化适配器参数列表
         self.proj_adapter1_left = []
         self.proj_adapter1_right = []
         self.kdropout = []
+        
+        # 初始化路由器
         self.router = CosineTopKGate(in_features, self.n)
+        
+        # 如果r>0，初始化多个不同rank的适配器
         if self.r > 0:
             for i in range(self.n):
+                # 左投影矩阵
                 self.proj_adapter1_left.append(
                     nn.Parameter(
                         torch.Tensor(size=(phm_dim, self._in_feats_per_axis, self.phm_rank * (2**i))),
                         requires_grad=True,
                     )
                 )
+                # 右投影矩阵
                 self.proj_adapter1_right.append(
                     nn.Parameter(
                         torch.Tensor(size=(phm_dim, self.phm_rank * (2**i), self._out_feats_per_axis)),
@@ -146,112 +179,193 @@ class K_Linear_MoE_new_(nn.Linear, LoRALayer):
                     )
                 )
 
+        # 设置dropout层
         self.kdropout = nn.Dropout(0.5)
+        # 将适配器参数转换为ParameterList
         self.proj_adapter1_left = nn.ParameterList(self.proj_adapter1_left)
         self.proj_adapter1_right = nn.ParameterList(self.proj_adapter1_right)
 
+        # 设置缩放因子
         self.scaling = 1
+        # 冻结原始权重
         self.weight.requires_grad = False
+        # 初始化适配器偏置
         self.b_adapter = nn.ParameterList([nn.Parameter(torch.Tensor(out_features))])
+        # 重置参数
         self.reset_parameters()
+        # 初始化权重
         self.init_W()
 
     def reset_parameters(self):
+        """重置线性层参数"""
         nn.Linear.reset_parameters(self)
-        # self.init_W()
 
     def init_W(self):
+        """初始化适配器权重"""
         for j in range(self.n):
             for i in range(self.phm_dim):
+                # 使用Glorot均匀分布初始化左右投影矩阵
                 self.proj_adapter1_left[j].data[i] = glorot_uniform(self.proj_adapter1_left[j].data[i])
                 self.proj_adapter1_right[j].data[i] = glorot_uniform(self.proj_adapter1_right[j].data[i])
+        # 将适配器偏置初始化为0
         self.b_adapter[0].data = torch.zeros_like(self.b_adapter[0].data)
 
     def set_phm_rule(self, phm_rule0_right=None, phm_rule0_left=None):
+        """设置PHM规则"""
         self.phm_rule0_right = phm_rule0_right
         self.phm_rule0_left = phm_rule0_left
 
     def set_H(self, i, zero_pad=False):
+        """计算第i个适配器的H矩阵"""
+        # 计算适配器权重矩阵
         W = torch.bmm(self.proj_adapter1_left[i], self.proj_adapter1_right[i])
-
+        # 计算PHM规则
         phm_rule0 = torch.bmm(self.phm_rule1_left, self.phm_rule1_right)
-
+        # 计算Kronecker积并求和
         H = kronecker_product_einsum_batched(phm_rule0, W).sum(0)
-
+        # 应用dropout
         return self.kdropout(H)
 
     def forward(self, x: torch.Tensor):
+        """前向传播"""
         def T(w):
+            """如果需要，转置权重矩阵"""
             return w.T if self.fan_in_fan_out else w
 
         if self.merged:
+            # 如果已合并，直接使用线性层
             return F.linear(x, T(self.weight), bias=self.bias)
         else:
+            # 计算基础线性层输出
             result = F.linear(x, T(self.weight), bias=self.bias)
+            # 重塑输入用于路由
             input_reshaped = rearrange(x, 'b c d -> (b c) d')
+            # 获取路由logits
             logits = self.router(input_reshaped)
+            
+            # 训练时添加噪声
             if self.training and 1.0 > 0:
                 logits_w = logits + 1.0 * torch.randn_like(logits) / self.n
             else:
                 logits_w = logits
+                
+            # 计算softmax权重
             logits_w = F.softmax(logits_w, dim=1)
+            # 获取最大logits和对应的索引
             max_logits, top1_indices = torch.max(logits_w, 1, True)
+            # 创建one-hot向量
             ret = torch.zeros_like(logits_w).scatter_(1, top1_indices, 1.0)
+            # 应用权重
             ret = ret * logits_w
+            # 重塑回原始维度
             ret = rearrange(ret, '(b c) e -> b c e', b=x.shape[0])
+            
+            # 计算所有适配器的输出
             l = []
-
             for i in range(self.n):
                 l.append(torch.matmul(input=x, other=self.set_H(i)).unsqueeze(2))
             l = torch.concat(l, dim=2)
+            
+            # 混合适配器输出
             res = ret.unsqueeze(-1) * l
             res = res.sum(dim=2)
+            
+            # 计算辅助损失
             self.aux_loss = 0.01 * load_importance_loss(F.softmax(logits, dim=1), max_logits, 4, 1.0)
 
+            # 返回最终结果
             return result + res + self.b_adapter[0]
 
 
 def load_importance_loss(scores_wo_noise, topk_logits, num_global_experts, gate_noise):
+    """计算负载均衡损失"""
+    
     def load_loss(scores_wo_noise, topk_logits, num_global_experts, gate_noise):
-        assert gate_noise > 0, "`gate_noise` must be > 0 for normalization in load_importance_loss()."
+        """计算负载损失"""
+        assert gate_noise > 0, "`gate_noise`必须大于0以进行归一化"
+        # 创建正态分布
         normal = Normal(
             torch.tensor([0.0], device=scores_wo_noise.device),
             torch.tensor([gate_noise / num_global_experts], device=scores_wo_noise.device),
         )
+        # 计算阈值
         threshold = topk_logits[:, -1].view(-1, 1).float()
+        # 计算差异
         diff = scores_wo_noise.float() - threshold.float()
+        # 计算概率
         prob = normal.cdf(diff)
+        # 计算负载
         Load = prob.sum(0)
+        # 计算负载方差与均值的比值
         l_load = Load.float().var() / (Load.float().mean() ** 2 + 1e-10)
         return l_load
 
     def importance_loss(scores_wo_noise):
+        """计算重要性损失"""
+        # 计算每个专家的总分数
         Impi = scores_wo_noise.float().sum(0)
+        # 计算分数方差与均值的比值
         l_imp = Impi.float().var() / (Impi.float().mean() ** 2 + 1e-10)
-
         return l_imp
 
+    # 计算重要性损失和负载损失
     l_imp = importance_loss(scores_wo_noise)
     l_load = load_loss(scores_wo_noise, topk_logits, num_global_experts, gate_noise)
+    # 返回平均损失
     return (l_imp + l_load) / 2.0
 
 
 class LoraInjectedLinear(nn.Module):
+    """LoRA注入的线性层实现"""
+    
     def __init__(self, in_features, out_features, bias=False, r=4, lora_bias=False):
+        """
+        初始化LoRA线性层
+        
+        参数:
+            in_features: 输入特征维度
+            out_features: 输出特征维度
+            bias: 是否使用偏置项
+            r: LoRA的秩，默认为4
+            lora_bias: LoRA层是否使用偏置项
+        """
+        # 初始化父类
         super().__init__()
 
+        # 检查LoRA秩是否合法
         if r > min(in_features, out_features):
-            raise ValueError(f"LoRA rank {r} must be less or equal than {min(in_features, out_features)}")
+            raise ValueError(f"LoRA的秩 {r} 必须小于或等于 {min(in_features, out_features)}")
 
+        # 创建基础线性层
         self.linear = nn.Linear(in_features, out_features, bias)
+        
+        # 创建LoRA降维层，将输入特征降至r维
         self.lora_down = nn.Linear(in_features, r, bias=lora_bias)
+        
+        # 创建LoRA升维层，将r维特征升至输出维度
         self.lora_up = nn.Linear(r, out_features, bias=lora_bias)
+        
+        # 设置LoRA缩放因子
         self.scale = 1.0
 
+        # 使用正态分布初始化降维层权重，标准差为1/r
         nn.init.normal_(self.lora_down.weight, std=1 / r)
+        
+        # 将升维层权重初始化为0
         nn.init.zeros_(self.lora_up.weight)
 
     def forward(self, input):
+        """
+        前向传播
+        
+        参数:
+            input: 输入张量
+            
+        返回:
+            原始线性层输出 + LoRA调整项
+        """
+        # 计算原始线性层输出和LoRA调整项的和
+        # LoRA调整项 = 升维层(降维层(输入)) * 缩放因子
         return self.linear(input) + self.lora_up(self.lora_down(input)) * self.scale
 
 

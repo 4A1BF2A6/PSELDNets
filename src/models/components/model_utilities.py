@@ -230,7 +230,7 @@ class Mlp(nn.Module):
 
         if self.adapter_instance is not None:
             adapted_output = self.adapter_instance(main_path) # 适配器作用于 main_path
-            main_path = x + adapted_output # 更新 main_path
+            main_path = main_path + adapted_output # 更新 main_path
             # current_aux_loss += aux_loss_from_adapter
 
         main_path = self.drop(main_path) # 在原始的 HTSAT Swin MLP 中，最后的drop在适配器之后    
