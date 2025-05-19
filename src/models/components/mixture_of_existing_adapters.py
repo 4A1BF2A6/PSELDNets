@@ -139,8 +139,11 @@ class MixtureOfExistingAdapters(nn.Module):
             one_hot = torch.zeros_like(router_logits).scatter_(1, topk_indices, 1.0)
             # 计算softmax权重
             routing_weights = F.softmax(topk_logits, dim=1)
+            # 将routing_weights扩展到与router_logits相同的维度
+            expanded_weights = torch.zeros_like(router_logits)
+            expanded_weights.scatter_(1, topk_indices, routing_weights)
             # 只保留top-k的权重,其他置为0
-            routing_weights = routing_weights * one_hot
+            routing_weights = expanded_weights * one_hot
         else:
             # 使用所有专家的softmax权重
             routing_weights = F.softmax(router_logits, dim=1)
