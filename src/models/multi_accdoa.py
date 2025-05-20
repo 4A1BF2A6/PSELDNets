@@ -47,18 +47,38 @@ class HTSAT(accdoa.HTSAT):
         self.fc = nn.Identity()                         # 使用恒等映射，不做额外变换
         log.info(f'Trainable parameters: {sum(p.numel() for p in self.parameters() if p.requires_grad)}')  # 记录可训练参数数量
         log.info(f'Non-trainable parameters: {sum(p.numel() for p in self.parameters() if not p.requires_grad)}')  # 记录冻结参数数量
-        
-        # 计算FLOPs
-        input_shape = (
-            1,              # batch_size：固定为1用于计算FLOPs
-            7,              # channels：音频通道数，通常为1
-            self.encoder.n_mels,        # freq_bins：梅尔频率维度，通常是128
-            self.encoder.segment_frames  # time_steps：时间帧数，根据配置确定
+
+        from thop import profile
+        import torch
+        # 打印模型配置信息
+        log.info(f'Model config:')
+        log.info(f'- input channels: {self.encoder.in_channels}')
+        log.info(f'- n_mels: {self.encoder.n_mels}')
+        log.info(f'- segment_frames: {self.encoder.segment_frames}')
+
+        # 创建输入tensor
+        dummy_input = torch.randn(
+            2,                          # batch_size=2 避免触发assert
+            self.encoder.in_channels,   # 输入通道数
+            self.encoder.n_mels,        # 梅尔频率维度
+            self.encoder.segment_frames # 时间帧数
         )
-        macs, params = get_model_complexity_info(self, input_shape, as_strings=True,
-                                               print_per_layer_stat=True, verbose=True)
-        log.info(f'FLOPs: {macs}')
-        log.info(f'Parameters: {params}')
+
+        # 设置模型为评估模式
+        self.eval()
+
+        # 计算FLOPs
+        flops, params = profile(self, inputs=(dummy_input,))
+        
+        # 转换单位并打印
+        log.info(f"Input shape: {dummy_input.shape}")
+        log.info(f"FLOPs: {flops / 1e9:.2f} GFLOPs")
+        log.info(f"Params: {params / 1e6:.2f} M")
+
+        # 恢复训练模式
+        self.train()
+  
+      
 
     def forward(self, x):
         """前向传播函数
