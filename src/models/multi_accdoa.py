@@ -1,6 +1,7 @@
 import torch.nn as nn
 from models import accdoa
 from utils.utilities import get_pylogger
+from ptflops import get_model_complexity_info
 
 log = get_pylogger(__name__)
 
@@ -46,6 +47,18 @@ class HTSAT(accdoa.HTSAT):
         self.fc = nn.Identity()                         # 使用恒等映射，不做额外变换
         log.info(f'Trainable parameters: {sum(p.numel() for p in self.parameters() if p.requires_grad)}')  # 记录可训练参数数量
         log.info(f'Non-trainable parameters: {sum(p.numel() for p in self.parameters() if not p.requires_grad)}')  # 记录冻结参数数量
+        
+        # 计算FLOPs
+        input_shape = (
+            1,              # batch_size：固定为1用于计算FLOPs
+            7,              # channels：音频通道数，通常为1
+            self.encoder.n_mels,        # freq_bins：梅尔频率维度，通常是128
+            self.encoder.segment_frames  # time_steps：时间帧数，根据配置确定
+        )
+        macs, params = get_model_complexity_info(self, input_shape, as_strings=True,
+                                               print_per_layer_stat=True, verbose=True)
+        log.info(f'FLOPs: {macs}')
+        log.info(f'Parameters: {params}')
 
     def forward(self, x):
         """前向传播函数
