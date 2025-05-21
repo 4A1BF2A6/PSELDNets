@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             // "args": "${command:pickArgs}"
-            "args": ["experiment=starss23/finetune_maccdoa_MixAdapter"],
+            "args": ["experiment=starss23/finetune_maccdoa_adapterbit"],
             "env": {
                 "CUDA_VISIBLE_DEVICES": "0"
             }

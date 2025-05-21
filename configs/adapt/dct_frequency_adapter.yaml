@@ -5,7 +5,7 @@ method: adapter_dct_freq
 
 adapt_kwargs:
   position: [MlpAdapter,SpatialAdapter]  # 同时在MLP层和注意力层后添加适配器
-  type: adapter_dct_freq
+  type: adapter_frequency
   mlp_ratio: 0.5
   act_layer: gelu
   adapter_scalar: 0.1

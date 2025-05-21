@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
 
 
+from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
 from models.components.model_utilities import (PatchEmbed, Mlp, DropPath,
                                                get_linear_layer, get_conv2d_layer)
 from models.components.utils import trunc_normal_, to_2tuple, interpolate
@@ -180,7 +181,7 @@ class WindowAttention(nn.Module):
             x: 输入特征，形状为 (num_windows*B, N, C)
             mask: 掩码，形状为 (num_windows, Wh*Ww, Wh*Ww) 或 None
         """
-        B_, N, C = x.shape
+        B_, N, C = x.shape  #(num_windows*B, N, C) 8 * 8  64  64
         # 计算QKV
         qkv = self.qkv(x).reshape(B_, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
@@ -210,14 +211,18 @@ class WindowAttention(nn.Module):
         # 计算输出
         x_main = (attn @ v).transpose(1, 2).reshape(B_, N, C)
         x_main = self.proj(x_main)
-        
-        # 应用适配器（如果存在）
+        # attn.shape is [B, num_heads, 补丁数量, 补丁数量]
+        # 应用适配器（如果存在）       x_main.shape is [B, 补丁的数量, 每个补丁的特征维度]
         if self.adapter_instance is not None:
-            adapted_x_main, aux_loss = self.adapter_instance(x_main)
-            x_main = x_main + adapted_x_main
-            # if aux_loss_from_adapter is not None:
+            if isinstance(self.adapter_instance, MixtureOfExistingAdapters):
+                adapted_x_main, aux_loss = self.adapter_instance(x_main)
+                x_main = x_main + adapted_x_main
+            else:
+                adapted_x_main = self.adapter_instance(x_main)
+                x_main = x_main + adapted_x_main
+            
+        # if aux_loss_from_adapter is not None:
             #     current_aux_loss += aux_loss_from_adapter
-        
         x_main = self.proj_drop(x_main)
         return x_main, attn
 
@@ -305,7 +310,7 @@ class SwinTransformerBlock(nn.Module):
 
     def forward(self, x):
         H, W = self.input_resolution
-        B, L, C = x.shape
+        B, L, C = x.shape    # B表示batch_size, L维度, C为通道
 
         shortcut = x
         x = self.norm1(x)
@@ -491,7 +496,6 @@ class HTSAT_Swin_Transformer(nn.Module):
                  drop_path_rate=0.1, norm_layer=nn.LayerNorm, ape=False, 
                  patch_norm=True, norm_before_mlp='ln', cfg_adapt={}):
         super(HTSAT_Swin_Transformer, self).__init__()
-
         self.spec_size = spec_size 
         self.patch_stride = patch_stride
         self.patch_size = patch_size
@@ -516,7 +520,8 @@ class HTSAT_Swin_Transformer(nn.Module):
         self.norm_layer = norm_layer if self.patch_norm else None
         self.norm_before_mlp = norm_before_mlp
         self.mlp_ratio = mlp_ratio
-
+        
+        self.mel_bins = mel_bins
         self.freq_ratio = self.spec_size // mel_bins
 
         # split spectrogram into non-overlapping patches
@@ -604,7 +609,7 @@ class HTSAT_Swin_Transformer(nn.Module):
 
     def forward_features(self, x):
         frames_num = x.shape[2]  # 保存输入特征的帧数，用于后续计算
-        x = self.patch_embed(x)  # (B, N, C) 将输入特征转换为序列形式的patch嵌入向量
+        x = self.patch_embed(x)  # (B, N, C) 将输入特征转换为序列形式的patch嵌入向量 N表示patch数量/序列长度，C表示每个补丁的特征维度
         if self.ape:
             x = x + self.absolute_pos_embed  # 如果启用，添加绝对位置编码
         x = self.pos_drop(x)  # 应用位置编码的dropout

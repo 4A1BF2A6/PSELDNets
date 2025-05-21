@@ -45,41 +45,50 @@ class HTSAT(accdoa.HTSAT):
             kernel_size = (self.encoder.SF, 3),         # 卷积核大小：频率维度使用全部频带，时间维度为3
             padding = (0, 1))                           # 在时间维度上进行填充
         self.fc = nn.Identity()                         # 使用恒等映射，不做额外变换
-        log.info(f'Trainable parameters: {sum(p.numel() for p in self.parameters() if p.requires_grad)}')  # 记录可训练参数数量
-        log.info(f'Non-trainable parameters: {sum(p.numel() for p in self.parameters() if not p.requires_grad)}')  # 记录冻结参数数量
 
         from thop import profile
         import torch
         # 打印模型配置信息
         log.info(f'Model config:')
-        log.info(f'- input channels: {self.encoder.in_channels}')
-        log.info(f'- n_mels: {self.encoder.n_mels}')
-        log.info(f'- segment_frames: {self.encoder.segment_frames}')
+        log.info(f'- input channels: {self.encoder.in_chans}')
+        log.info(f'- n_mels: {self.encoder.mel_bins}')
+        log.info(f'- segment_frames: {self.tgt_output_frames * self.pred_res}')
 
         # 创建输入tensor
         dummy_input = torch.randn(
-            2,                          # batch_size=2 避免触发assert
-            self.encoder.in_channels,   # 输入通道数
-            self.encoder.n_mels,        # 梅尔频率维度
-            self.encoder.segment_frames # 时间帧数
+            1,                          # batch_size=1 用于计算单个样本的FLOPs
+            self.encoder.in_chans,   # 输入通道数
+            self.tgt_output_frames * self.pred_res, # 时间帧数
+            self.encoder.mel_bins # 梅尔频率维度
         )
 
         # 设置模型为评估模式
         self.eval()
 
-        # 计算FLOPs
-        flops, params = profile(self, inputs=(dummy_input,))
-        
-        # 转换单位并打印
-        log.info(f"Input shape: {dummy_input.shape}")
-        log.info(f"FLOPs: {flops / 1e9:.2f} GFLOPs")
-        log.info(f"Params: {params / 1e6:.2f} M")
+        try:
+            # 尝试使用batch_size=1计算
+            flops, params = profile(self, inputs=(dummy_input,))
+            # log.info(f"Input shape: {dummy_input.shape}")
+            log.info(f"FLOPs (single sample): {flops / 1e9:.2f} GFLOPs")
+            # log.info(f"Params: {params / 1e6:.2f} M")
+        except AssertionError:
+            # 如果失败，使用batch_size=2重试
+            log.warning("Computing FLOPs with batch_size=2 due to model constraints")
+            dummy_input = torch.randn(2, self.encoder.in_chans, 
+                                    self.tgt_output_frames * self.pred_res,
+                                    self.encoder.mel_bins, 
+                                    )
+            flops, params = profile(self, inputs=(dummy_input,))
+            # log.info(f"Input shape: {dummy_input.shape}")
+            log.info(f"FLOPs (per sample): {(flops/2) / 1e9:.2f} GFLOPs")  # 除以2得到单个样本的FLOPs
+            # log.info(f"Params: {params / 1e6:.2f} M")
 
         # 恢复训练模式
         self.train()
-  
-      
 
+        log.info(f'Trainable parameters: {sum(p.numel() for p in self.parameters() if p.requires_grad)}')  # 记录可训练参数数量
+        log.info(f'Non-trainable parameters: {sum(p.numel() for p in self.parameters() if not p.requires_grad)}')  # 记录冻结参数数量
+    
     def forward(self, x):
         """前向传播函数
         
@@ -90,6 +99,9 @@ class HTSAT(accdoa.HTSAT):
             包含'multi_accdoa'键的字典，值为多轨道ACCDOA表示
             每个轨道可以表示一个声音事件的类别和方向
         """
+        # print('=========================================')
+        # print(x.shape)
+        # print('=========================================')
         return {
             'multi_accdoa': super().forward(x)['accdoa']  # 调用父类的forward方法获取accdoa输出，并重命名为multi_accdoa
         }

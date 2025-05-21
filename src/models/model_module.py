@@ -64,7 +64,7 @@ class SELDModelModule(BaseModelModule):
             if 'wavmix' in self.data_aug['type']:
                 batch_x, batch_y = self.data_aug['wavmix'](batch_x, batch_y)  # 应用波形混合增强
         
-        batch_x = self.standardize(batch_x)  # 标准化输入特征
+        batch_x = self.standardize(batch_x)  # 标准化输入特征 [B, C, T]  C 表示通道数, T 表示时间序列长度（与音频采样率有关）
         
         # 特征提取后的数据增强
         if self.training:
@@ -83,7 +83,8 @@ class SELDModelModule(BaseModelModule):
         self.stat['ov1'] += np.sum(np.array(batch_sample['ov']) == '1')  # 重叠度1
         self.stat['ov2'] += np.sum(np.array(batch_sample['ov']) == '2')  # 重叠度2
         self.stat['ov3'] += np.sum(np.array(batch_sample['ov']) == '3')  # 重叠度3
-        batch_data = batch_sample['data']  # 获取输入数据
+        batch_data = batch_sample['data']  # 获取输入数据 [B, C, T] C 表示通道数, T 表示时间序列长度（与音频采样率有关）
+        # 获取目标数据 [B, T, CSE, SI, C]  T表示时间帧数，CSE表示最大同时发生事件数，SI表示空间信息维度（方向角、仰角、距离、类索引），C表示事件类别数
         batch_target = {key: value for key, value in batch_sample.items() if 'data' not in key}  # 获取目标数据
         batch_pred, batch_target = self.common_step(batch_data, batch_target)  # 通用步骤处理
         

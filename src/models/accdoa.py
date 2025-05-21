@@ -242,7 +242,7 @@ class HTSAT(nn.Module):
 
         # Concatenate clips to a 10-second clip if necessary
         if self.output_frames is None:
-            self.output_frames = int(T // self.pred_res)
+            self.output_frames = int(T // self.pred_res) # 计算输出帧数，一共100帧
         if self.output_frames < self.tgt_output_frames:
             assert self.output_frames == self.tgt_output_frames // 2, \
                 'only support 5-second or 10-second clip or input to the model'
@@ -251,15 +251,15 @@ class HTSAT(nn.Module):
             x = torch.cat((x[:B//factor, :, :-1], x[B//factor:, :, :-1]), dim=2)
         elif self.output_frames > self.tgt_output_frames:
             raise NotImplementedError('output_frames > tgt_output_frames is not implemented')
-
+        
         # Compute scalar
         x = x.transpose(1, 3)
-        for nch in range(x.shape[-1]):
+        for nch in range(x.shape[-1]): # 有七个scalar层，分别对每个通道进行归一化处理，使用BatchNorm2d层，通过卷积变换为patch特征（输出通道96，Patch大小为4 x 4）PatchEmbeding的过程，然后经过LayerNorm层进行归一化
             x[..., [nch]] = self.scalar[nch](x[..., [nch]])
         x = x.transpose(1, 3)
 
-        x = self.encoder(x)
-        x = self.tscam_conv(x)
+        x = self.encoder(x) # 提取特征 [B, C, T, F]
+        x = self.tscam_conv(x) # 将特征转换为ACCDOA表示 [B, C, T, F]
         x = torch.flatten(x, 2) # (B, C, T) B是批次大小 C是通道数 T是时间步长
         x = x.permute(0,2,1).contiguous() # B, T, C
         x = self.fc(x)

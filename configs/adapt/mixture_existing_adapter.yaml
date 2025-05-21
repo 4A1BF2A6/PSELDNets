@@ -32,9 +32,9 @@ adapt_kwargs:
         act_layer: gelu
         adapter_scalar: 0.1
         
-    - type: adapter  # 普通适配器专家
-      name: base_adapter # 专家名称
-      kwargs:         # 专家参数
-        mlp_ratio: 0.25
-        act_layer: gelu
-        adapter_scalar: 0.1
+    # - type: adapter  # 普通适配器专家
+    #   name: base_adapter # 专家名称
+    #   kwargs:         # 专家参数
+    #     mlp_ratio: 0.25
+    #     act_layer: gelu
+    #     adapter_scalar: 0.1

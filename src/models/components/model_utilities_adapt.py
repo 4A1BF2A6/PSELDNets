@@ -31,7 +31,7 @@ class Adapter(nn.Module):
         nn.init.constant_(self.fc2.bias, 0)
 
     def forward(self, x, residual=None):
-
+        # x.shape is [num_windows*B, N, C] == x_main.shape is [num_windows*B, token的数量, 每个补丁的特征维度]
         x = self.fc1(x)
         x = self.act(x)
         x = self.fc2(x)
@@ -303,7 +303,7 @@ class DCTAdapter(nn.Module):
 
 class DCTFrequencyAdapter(nn.Module):
     """
-        简化版DCT频率适配器，避免维度问题
+        简化版频率适配器，避免维度问题
     """
 
     def __init__(self, in_features, mlp_ratio=0.25, act_layer='gelu',
@@ -337,6 +337,12 @@ class DCTFrequencyAdapter(nn.Module):
         self.up = nn.Linear(hidden_features, in_features)
         
     def forward(self, x, residual=None):
+
+        '''
+            x.shape is [B, L, D]
+            for starss23, L = 1000, D = 128
+            
+        '''
         # 应用层归一化
         x_norm = self.norm(x)
         

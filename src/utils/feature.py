@@ -16,7 +16,7 @@ window_fn_dict = {
 def nCr(n, r):
     return math.factorial(n) // math.factorial(r) // math.factorial(n-r)
 
-
+# 提取logmelIV特征
 class LogmelIV_Extractor(nn.Module):
     def __init__(self, cfg):
         super().__init__()
@@ -46,16 +46,16 @@ class LogmelIV_Extractor(nn.Module):
         if x.ndim != 3:
             raise ValueError("x shape must be (batch_size, num_channels, data_length)\n \
                             Now it is {}".format(x.shape))
-        x = self.stft_extractor(x)
-        mel = self.mel_scale(torch.abs(x)**2)
-        logmel = self.amp2db(mel).transpose(-1, -2)
+        x = self.stft_extractor(x) # 提取stft特征 [B, C, F, T]
+        mel = self.mel_scale(torch.abs(x)**2) # 提取mel特征 [B, C, F, T]
+        logmel = self.amp2db(mel).transpose(-1, -2) # 提取logmel特征 [B, C, T, F]
         intensity_vector = self.intensity_vector(
             [x.real.transpose(-1, -2), x.imag.transpose(-1, -2)], 
             self.mel_scale.fb)
         out = torch.cat((logmel, intensity_vector), dim=1)
         return out
 
-
+# 提取logmel特征
 class Logmel_Extractor(nn.Module):
     def __init__(self, cfg):
         super().__init__()
@@ -90,6 +90,7 @@ class Logmel_Extractor(nn.Module):
         out = logmel
         return out
 
+# 提取intensityvector特征
 def intensityvector(input, melW):
     """Calculate intensity vector. Input is four channel stft of the signals.
     input: (stft_real, stft_imag)
@@ -108,7 +109,7 @@ def intensityvector(input, melW):
     IVy = Pref_real * Py_real + Pref_imag * Py_imag
     IVz = Pref_real * Pz_real + Pref_imag * Pz_imag
     normal = torch.sqrt(IVx**2 + IVy**2 + IVz**2) + eps
-
+    #分别计算FOA格式音频的强度向量，X，Y，Z方向的强度向量
     IVx_mel = torch.matmul(IVx / normal, melW)
     IVy_mel = torch.matmul(IVy / normal, melW)
     IVz_mel = torch.matmul(IVz / normal, melW)
@@ -116,6 +117,7 @@ def intensityvector(input, melW):
 
     return intenVec
 
+# 提取mic特征
 class Features_Extractor_MIC():
     def __init__(self, cfg):
         self.fs = cfg['data']['sample_rate']
