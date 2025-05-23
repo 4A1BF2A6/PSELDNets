@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from einops import rearrange
 
 from .moa_utils import CosineTopKGate, load_importance_loss
-from .model_utilities_adapt import Adapter, DCTAdapter, DCTFrequencyAdapter
+from .model_utilities_adapt import Adapter, DCTAdapter, DCTFrequencyAdapter, SEAdapter
 
 class MixtureOfExistingAdapters(nn.Module):
     """
@@ -99,6 +99,8 @@ class MixtureOfExistingAdapters(nn.Module):
             return DCTFrequencyAdapter(in_features=in_features, **kwargs)
         elif expert_type == 'adapter':
             return Adapter(in_features=in_features, **kwargs)
+        elif expert_type == 'SEAdapter':
+            return SEAdapter(in_features=in_features, **kwargs)
         else:
             raise ValueError(f"不支持的专家类型: {expert_type}")
 

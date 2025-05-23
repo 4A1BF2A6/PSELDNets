@@ -22,19 +22,40 @@ adapt_kwargs:
         mlp_ratio: 0.25
         act_layer: gelu
         adapter_scalar: 0.1
-        dct_kernel_size: 3
-        dct_groups: 1
+        dct_kernel_size: 2
+        # dct_groups: 1
         
-    - type: frequency # 专家类型
+    - type: SEAdapter # 专家类型
       name: freq_expert # 专家名称
       kwargs:        # 专家参数
         mlp_ratio: 0.25
         act_layer: gelu
         adapter_scalar: 0.1
         
+    - type: adapter  # 普通适配器专家
+      name: base_adapter_1 # 专家名称
+      kwargs:         # 专家参数
+        mlp_ratio: 0.25
+        act_layer: gelu
+        adapter_scalar: 0.1
+
     # - type: adapter  # 普通适配器专家
-    #   name: base_adapter # 专家名称
+    #   name: base_adapter_2 # 专家名称
     #   kwargs:         # 专家参数
     #     mlp_ratio: 0.25
     #     act_layer: gelu
     #     adapter_scalar: 0.1
+
+    # - type: adapter  # 普通适配器专家
+    #   name: base_adapter_3 # 专家名称
+    #   kwargs:         # 专家参数
+    #     mlp_ratio: 0.25
+    #     act_layer: gelu
+    #     adapter_scalar: 0.1
+
+    # - type: adapter  # 普通适配器专家
+    #   name: base_adapter_4 # 专家名称
+    #   kwargs:         # 专家参数
+    #     mlp_ratio: 0.25
+    #     act_layer: gelu
+    #     adapter_scalar: 0.1    

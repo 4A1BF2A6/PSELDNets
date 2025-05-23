@@ -144,6 +144,13 @@ class WindowAttention(nn.Module):
                     in_features=dim,
                     **adapt_kwargs_global
                 )
+            elif adapter_type == 'adapter_se':
+                print("启用的是 SEAdapter for WindowAttention")
+                from models.components.model_utilities_adapt import SEAdapter
+                self.adapter_instance = SEAdapter(
+                    in_features=dim,
+                    **adapt_kwargs_global
+                )
             elif adapter_type == 'mixture_existing':
                 print("启用的是 混合适配器 for WindowAttention")
                 from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
@@ -181,7 +188,7 @@ class WindowAttention(nn.Module):
             x: 输入特征，形状为 (num_windows*B, N, C)
             mask: 掩码，形状为 (num_windows, Wh*Ww, Wh*Ww) 或 None
         """
-        B_, N, C = x.shape  #(num_windows*B, N, C) 8 * 8  64  64
+        B_, N, C = x.shape  #(num_windows*B, N, C)
         # 计算QKV
         qkv = self.qkv(x).reshape(B_, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
@@ -593,20 +600,6 @@ class HTSAT_Swin_Transformer(nn.Module):
                       x.shape[4]) # (B,C,r*F,T//r)
         return x
 
-    # 在适当的位置（如SwinTransformerBlock类中）添加对DCT适配器的支持
-    def add_dct_adapter(self, config):
-        self.use_dct_adapter = True
-        from models.components.model_utilities_adapt import DCTAdapter
-
-        # 在FFN之后添加DCT适配器
-        self.dct_adapter = DCTAdapter(
-            in_features=self.dim,
-            mlp_ratio=config.get('mlp_ratio', 0.5),
-            act_layer=config.get('act_layer', 'gelu'),
-            adapter_scalar=config.get('adapter_scalar', 0.1),
-            dct_kernel_size=config.get('dct_kernel_size', 3)
-        )
-
     def forward_features(self, x):
         frames_num = x.shape[2]  # 保存输入特征的帧数，用于后续计算
         x = self.patch_embed(x)  # (B, N, C) 将输入特征转换为序列形式的patch嵌入向量 N表示patch数量/序列长度，C表示每个补丁的特征维度
@@ -643,6 +636,11 @@ class HTSAT_Swin_Transformer(nn.Module):
         '''
 
         x = self.reshape_wav2img(x)  # (B,C,r*F,T//r) 
+        
+        '''
+            raw x.shape is [B, C, F, T] [B, 7, 1001, 64]
+            after reshape_wav2img, x.shape is [B, C, r*F, T//r] [B, 7, 256, 256]
+        '''
 
         '''
             执行Swin Transformer的主要特征提取过程
@@ -650,7 +648,7 @@ class HTSAT_Swin_Transformer(nn.Module):
             生成能够表示音频事件时间、频率和空间特性的高级特征表示
         '''
         x = self.forward_features(x)
-
+        
         return x
 
     def forward_patch(self, x):

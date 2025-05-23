@@ -6,7 +6,7 @@ defaults:                                       # 默认配置项定义部分
  - _self_                                       # 表示当前配置文件优先级高于默认配置
 
 model:                                          # 模型相关配置部分
-  batch_size: 8                                # 训练批次大小设置为32
+  batch_size: 32                                # 训练批次大小设置为32
   method: multi_accdoa                          # 使用多活动类定位方法（multi-Activity-Coupled Cartesian DOA）
   # backbone: HTSAT                               # 使用HTSAT作为骨干网络
   loss:                                         # 损失函数配置

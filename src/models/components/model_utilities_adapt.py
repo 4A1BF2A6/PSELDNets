@@ -1,5 +1,6 @@
 import math
 import torch
+import torch_dct as dct
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -200,7 +201,7 @@ class DCTAdapter(nn.Module):
         self.register_buffer('dct_basis', self._get_dct_basis(dct_kernel_size))
         
         # 频域转换层
-        self.freq_down = nn.Linear(in_features, hidden_features)
+        self.freq_down = nn.Linear(max(12, self.dct_kernel_size), hidden_features)
         self.freq_up = nn.Linear(hidden_features, in_features)
         
         # 残差连接前的层归一化
@@ -236,40 +237,51 @@ class DCTAdapter(nn.Module):
         Returns:
             频率增强的特征张量
         """
-        batch_size, seq_len, dim = x.shape
+        # 手动实现DCT卷积
+        # batch_size, seq_len, dim = x.shape
         
-        # 为了更好地处理边界，我们使用反射填充
-        padding = self.dct_kernel_size // 2
+        # # 为了更好地处理边界，我们使用反射填充
+        # padding = self.dct_kernel_size // 2
         
-        # 对频率维度应用DCT卷积
-        # 首先重塑为形状便于卷积操作
-        x_reshaped = x.transpose(1, 2).contiguous()  # [B, D, L]
+        # # 对频率维度应用DCT卷积
+        # # 首先重塑为形状便于卷积操作
+        # x_reshaped = x.transpose(1, 2).contiguous()  # [B, D, L]
         
-        # 应用反射填充
-        x_padded = F.pad(x_reshaped, (padding, padding), mode='reflect')
+        # # 应用反射填充
+        # x_padded = F.pad(x_reshaped, (padding, padding), mode='reflect')
         
-        # 提取滑动窗口
-        x_windows = []
-        for i in range(seq_len):
-            window = x_padded[:, :, i:i+self.dct_kernel_size]
-            x_windows.append(window)
+        # # 提取滑动窗口
+        # x_windows = []
+        # for i in range(seq_len):
+        #     window = x_padded[:, :, i:i+self.dct_kernel_size]
+        #     x_windows.append(window)
         
-        # 将窗口堆叠成批次
-        x_windows = torch.stack(x_windows, dim=2)  # [B, D, L, K]
+        # # 将窗口堆叠成批次
+        # x_windows = torch.stack(x_windows, dim=2)  # [B, D, L, K]
         
-        # 应用DCT变换
-        dct_features = torch.matmul(x_windows, self.dct_basis.t())  # [B, D, L, K]
+        # # 应用DCT变换
+        # dct_features = torch.matmul(x_windows, self.dct_basis.t())  # [B, D, L, K]
+        
+        # # 只保留低频分量（前几个DCT系数）
+        # keep_freqs = max(1, self.dct_kernel_size // 2)
+        # dct_features = dct_features[:, :, :, :keep_freqs]
+        
+        # # 重新展平
+        # dct_features = dct_features.reshape(batch_size, dim, seq_len, -1)
+        # dct_features = dct_features.permute(0, 2, 1, 3).contiguous()
+        # dct_features = dct_features.reshape(batch_size, seq_len, -1)
+
+        # 使用torch_dct实现DCT卷积 x.shape is [B, N, C]
+        # x_transposed = x.transpose(1, 2)  # -> [B, C, N]
+    
+        # 在通道维度上做 DCT
+        dct_output = dct.dct(x, norm='ortho')  # DCT-II with orthogonal normalization
         
         # 只保留低频分量（前几个DCT系数）
-        keep_freqs = max(1, self.dct_kernel_size // 2)
-        dct_features = dct_features[:, :, :, :keep_freqs]
-        
-        # 重新展平
-        dct_features = dct_features.reshape(batch_size, dim, seq_len, -1)
-        dct_features = dct_features.permute(0, 2, 1, 3).contiguous()
-        dct_features = dct_features.reshape(batch_size, seq_len, -1)
-        
-        return dct_features
+        keep_freqs = max(12, self.dct_kernel_size)
+        dct_output = dct_output[:, :, :keep_freqs]  # -> [B, N, keep_freqs]
+
+        return dct_output
     
     def forward(self, x, residual=None):
         """前向传播
@@ -357,6 +369,76 @@ class DCTFrequencyAdapter(nn.Module):
         hidden = self.act(hidden)
         output = self.up(hidden)
         
+        # 缩放
+        output = output * self.scale
+        
+        # 可选残差
+        if residual is not None:
+            output = output + residual
+            
+        return output
+
+class SEAdapter(nn.Module):
+    """
+        SE适配器，通道注意力
+        传统的SE模型，[B, C, H, W]
+        我的特征形状是 [B, N, C]
+    """
+
+    def __init__(self, in_features, mlp_ratio=0.25, act_layer='gelu',
+                 adapter_scalar=1, **kwargs):
+        super().__init__()
+        hidden_features = int(in_features * mlp_ratio)
+        
+        # 基础适配器组件
+        if act_layer == 'gelu':
+            self.act = nn.GELU()
+        elif act_layer == 'relu':
+            self.act = nn.ReLU()
+        else:
+            raise ValueError(f"Activation layer {act_layer} not supported")
+            
+        if adapter_scalar == 'learnable_scalar':
+            self.scale = nn.Parameter(torch.ones(1))
+        else:
+            self.scale = adapter_scalar
+        
+        self.norm = nn.LayerNorm(in_features)
+
+        # 传统SE模块组件
+        self.globalAvgPool = nn.AdaptiveAvgPool1d(1)
+        self.down = nn.Linear(in_features, hidden_features)
+        self.up = nn.Linear(hidden_features, in_features)
+        self.sigmoid = nn.Sigmoid()
+        
+    def forward(self, x, residual=None):
+
+        '''
+            x.shape is [B(num_windows*B), N(token的数量), C(每个补丁的特征维度)]
+        '''
+
+        # 应用层归一化
+        # x_norm = self.norm(x)
+
+        # 转置以适应传统SE模块 [B, N, C] -> [B, C, N]
+        x_t = x.transpose(1, 2)
+
+        # 计算通道注意力
+        out = self.globalAvgPool(x_t) # [B, C, 1]
+        out = self.down(out.transpose(1, 2)) # [B, 1, C/r]
+        out = self.act(out) # [B, 1, C/r]
+        out = self.up(out) # [B, 1, C]
+        attn = self.sigmoid(out) # [B, 1, C]
+        
+        # 应用通道注意力
+        x_attn = x * attn # [B, N, C]
+
+        output = x_attn
+        # 再通过一个MLP
+        output = self.down(output)
+        output = self.act(output)
+        output = self.up(output)
+
         # 缩放
         output = output * self.scale
         
