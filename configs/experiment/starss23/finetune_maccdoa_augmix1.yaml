@@ -19,3 +19,10 @@ model:
 trainer:
   max_epochs: 70
   check_val_every_n_epoch: 1
+
+# STARSS23特定配置
+sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5]  # 为STARSS23的13个类别设置SED阈值
+# 后处理配置
+# post_processing: null
+post_processing: ACS
+
