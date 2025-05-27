@@ -102,7 +102,7 @@ class MixtureOfExistingAdapters(nn.Module):
             return Adapter(in_features=in_features, **kwargs)
         elif expert_type == 'SEAdapter':
             return SEAdapter(in_features=in_features, **kwargs)
-        elif expert_type == 'ConvAdapterDesign1':
+        elif expert_type == 'conv_adapter':
             return ConvAdapterDesign1(in_features=in_features, **kwargs)
         else:
             raise ValueError(f"不支持的专家类型: {expert_type}")
