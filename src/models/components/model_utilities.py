@@ -190,6 +190,10 @@ class Mlp(nn.Module):
                 print('启用的是SE适配器 for MLP')
                 from .model_utilities_adapt import SEAdapter
                 self.adapter_instance = SEAdapter(in_features, **adapt_kwargs_global)
+            elif self.current_adapter_type == 'conv_adapter':
+                print('启用的是ConvAdapterDesign1适配器 for MLP')
+                from .model_utilities_adapt import ConvAdapterDesign1
+                self.adapter_instance = ConvAdapterDesign1(in_features, **adapt_kwargs_global)
             elif self.current_adapter_type == 'mixture_existing': # 混合适配器
                 print('启用的是 混合适配器 for MLP')
 

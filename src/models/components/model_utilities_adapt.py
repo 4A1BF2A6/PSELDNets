@@ -3,7 +3,8 @@ import torch
 import torch_dct as dct
 import torch.nn as nn
 import torch.nn.functional as F
-
+from typing import Callable, List, Optional
+from torch import Tensor
 
 class Adapter(nn.Module):
     def __init__(self, in_features, mlp_ratio=0.25, act_layer='gelu', 
@@ -410,7 +411,21 @@ class SEAdapter(nn.Module):
         self.down = nn.Linear(in_features, hidden_features)
         self.up = nn.Linear(hidden_features, in_features)
         self.sigmoid = nn.Sigmoid()
-        
+
+    def channelAttention(self, x):
+        '''
+            x.shape is [B, C, N]
+        '''
+        # 计算通道注意力
+        out = self.globalAvgPool(x) # [B, C, 1]
+        out = self.down(out.transpose(1, 2)) # [B, 1, C/r]
+        out = self.act(out) # [B, 1, C/r]
+        out = self.up(out) # [B, 1, C]
+        attn = self.sigmoid(out) # [B, 1, C]
+
+        return attn
+       
+
     def forward(self, x, residual=None):
 
         '''
@@ -420,24 +435,30 @@ class SEAdapter(nn.Module):
         # 应用层归一化
         # x_norm = self.norm(x)
 
+        x = self.down(x)
+        x = self.act(x)
+        x = self.up(x)
+
+
         # 转置以适应传统SE模块 [B, N, C] -> [B, C, N]
         x_t = x.transpose(1, 2)
-
+        
         # 计算通道注意力
-        out = self.globalAvgPool(x_t) # [B, C, 1]
-        out = self.down(out.transpose(1, 2)) # [B, 1, C/r]
-        out = self.act(out) # [B, 1, C/r]
-        out = self.up(out) # [B, 1, C]
-        attn = self.sigmoid(out) # [B, 1, C]
+        # out = self.globalAvgPool(x_t) # [B, C, 1]
+        # out = self.down(out.transpose(1, 2)) # [B, 1, C/r]
+        # out = self.act(out) # [B, 1, C/r]
+        # out = self.up(out) # [B, 1, C]
+        # attn = self.sigmoid(out) # [B, 1, C]
+        attn = self.channelAttention(x_t)
         
         # 应用通道注意力
         x_attn = x * attn # [B, N, C]
 
         output = x_attn
         # 再通过一个MLP
-        output = self.down(output)
-        output = self.act(output)
-        output = self.up(output)
+        # output = self.down(output)
+        # output = self.act(output)
+        # output = self.up(output)
 
         # 缩放
         output = output * self.scale
@@ -447,3 +468,205 @@ class SEAdapter(nn.Module):
             output = output + residual
             
         return output
+    
+
+class SqueezeExcitation(torch.nn.Module):
+    """
+    实现Squeeze-and-Excitation模块，来自论文 https://arxiv.org/abs/1709.01507
+    参数说明：
+        input_channels (int): 输入图像的通道数
+        squeeze_channels (int): 压缩后的通道数
+        activation (Callable): delta激活函数，默认为ReLU
+        scale_activation (Callable): sigma激活函数，默认为Sigmoid
+    """
+
+    def __init__(
+        self,
+        input_channels: int,
+        squeeze_channels: int,
+        out_channels: int,
+        activation: Callable[..., torch.nn.Module] = torch.nn.ReLU,
+        scale_activation: Callable[..., torch.nn.Module] = torch.nn.Sigmoid,
+    ) -> None:
+        super().__init__()
+        # 全局平均池化
+        self.avgpool = torch.nn.AdaptiveAvgPool2d(1)
+        # 第一个全连接层，用于降维
+        self.fc1 = torch.nn.Conv2d(input_channels, squeeze_channels, 1)
+        # 第二个全连接层，用于升维
+        self.fc2 = torch.nn.Conv2d(squeeze_channels, out_channels, 1)
+        self.activation = activation()
+        self.scale_activation = scale_activation()
+
+    def _scale(self, input: Tensor) -> Tensor:
+        """计算通道注意力权重"""
+        scale = self.avgpool(input)
+        scale = self.fc1(scale)
+        scale = self.activation(scale)
+        scale = self.fc2(scale)
+        return self.scale_activation(scale)
+
+    def forward(self, input: Tensor) -> Tensor:
+        """前向传播"""
+        scale = self._scale(input)
+        # return scale * input  # 原始SE模块会返回加权后的特征
+        return scale  # 这里只返回注意力权重
+
+
+class ConvAdapterDesign1(nn.Module):
+    """
+    Conv-Adapter的第一个设计方案
+    结构：1x1卷积 -> 深度卷积 -> 1x1卷积
+    输入形状: [B, N, C] -> [B, C, N, 1] -> [B, N, C]
+    """
+    def __init__(self, in_features, mlp_ratio=0.25, act_layer='gelu',
+                 adapter_scalar=1, kernel_size=3, padding=1, stride=1, 
+                 groups=1, dilation=1, **kwargs):
+        super().__init__()
+        # 计算隐藏层维度
+        hidden_features = int(in_features * mlp_ratio)
+        
+        # 配置激活函数
+        if act_layer == 'gelu':
+            self.act = nn.GELU()
+        elif act_layer == 'relu':
+            self.act = nn.ReLU()
+        else:
+            raise ValueError(f"Activation layer {act_layer} not supported")
+            
+        # 配置缩放因子
+        if adapter_scalar == 'learnable_scalar':
+            self.scale = nn.Parameter(torch.ones(1))
+        else:
+            self.scale = adapter_scalar
+
+        # 1x1点卷积，用于降维
+        self.conv1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, stride=1)
+        self.norm1 = nn.LayerNorm(hidden_features)
+
+        # 深度卷积，用于特征提取
+        self.conv2 = nn.Conv2d(hidden_features, hidden_features, 
+                              kernel_size=kernel_size, stride=stride, 
+                              groups=groups, padding=padding, 
+                              dilation=int(dilation))
+        self.norm2 = nn.LayerNorm(hidden_features)
+
+        # 1x1点卷积，用于升维
+        self.conv3 = nn.Conv2d(hidden_features, in_features, kernel_size=1, stride=1)
+        self.norm3 = nn.LayerNorm(in_features)
+    
+    def forward(self, x, residual=None):
+        """
+        前向传播
+        Args:
+            x: 输入张量，形状为 [B, N, C]
+            residual: 可选的残差连接输入
+        Returns:
+            处理后的张量，形状为 [B, N, C]
+        """
+        # 保存原始形状
+        B, N, C = x.shape
+        
+        # 重塑输入以适应卷积层 [B, N, C] -> [B, C, N, 1]
+        x = x.transpose(1, 2).unsqueeze(-1)
+        
+        # 第一个1x1卷积
+        out = self.conv1(x)  # [B, hidden_features, N, 1]
+        out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
+        out = self.norm1(out)
+        out = self.act(out)
+        out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
+        
+        # 深度卷积
+        out = self.conv2(out)  # [B, hidden_features, N, 1]
+        out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
+        out = self.norm2(out)
+        out = self.act(out)
+        out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
+
+        # 第二个1x1卷积
+        out = self.conv3(out)  # [B, in_features, N, 1]
+        out = out.squeeze(-1).transpose(1, 2)  # [B, N, in_features]
+        out = self.norm3(out)
+        out = self.act(out)
+
+        # 应用缩放
+        out = out * self.scale
+        
+        # 可选残差连接
+        if residual is not None:
+            out = out + residual
+
+        return out
+
+
+class ConvAdapter(nn.Module):
+    """
+    Conv-Adapter的第二个设计方案（v4版本）
+    结构：深度卷积 -> 1x1卷积 + 通道注意力
+    """
+    def __init__(self, inplanes, outplanes, width, 
+                kernel_size=3, padding=1, stride=1, groups=1, dilation=1, norm_layer=None, act_layer=None, **kwargs):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.Identity
+        if act_layer is None:
+            act_layer = nn.Identity
+
+        # 深度卷积，用于特征提取
+        self.conv1 = nn.Conv2d(inplanes, width, kernel_size=kernel_size, stride=stride, groups=groups, padding=padding, dilation=int(dilation))
+        self.act = act_layer()
+
+        # 1x1点卷积，用于通道调整
+        self.conv2 = nn.Conv2d(width, outplanes, kernel_size=1, stride=1)
+
+        # 通道注意力机制
+        # 方案1：使用SE模块
+        # self.se = SqueezeExcitation(inplanes, width, outplanes, activation=act_layer)
+        # 方案2：使用可学习的通道缩放参数
+        self.se = nn.Parameter(1.0 * torch.ones((1, outplanes, 1, 1)), requires_grad=True)
+    
+    def forward(self, x):
+        """前向传播"""
+        # 深度卷积
+        out = self.conv1(x)
+        out = self.act(out)
+        # 1x1卷积
+        out = self.conv2(out)
+        # 通道注意力
+        out = out * self.se
+        return out
+
+
+class LinearAdapter(nn.Module):
+    """
+    线性适配器模块
+    用于处理一维特征，结构：线性层 -> 激活 -> 线性层 + 通道注意力
+    """
+    def __init__(self, inplanes, outplanes, width, act_layer=None, **kwargs):
+        super().__init__()
+
+        # 第一个线性层，用于降维
+        self.fc1 = nn.Linear(inplanes, width)
+        # 第二个线性层，用于升维
+        self.fc2 = nn.Linear(width, outplanes)
+        self.act = act_layer()
+        # 通道注意力参数
+        self.se = nn.Parameter(1.0 * torch.ones((1, outplanes)), requires_grad=True)
+
+    def forward(self, x):
+        """前向传播"""
+        out = self.fc1(x)
+        out = self.act(out)
+        out = self.fc2(out)
+        out = out * self.se
+        return out
+
+
+if __name__ == '__main__':
+    # 测试代码
+    adapter = ConvAdapter(128, 128, width=32, groups=32)
+    print(adapter.conv1.weight.shape)  # 打印深度卷积权重形状
+    print(adapter.conv2.weight.shape)  # 打印点卷积权重形状
+
+

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from einops import rearrange
 
 from .moa_utils import CosineTopKGate, load_importance_loss
-from .model_utilities_adapt import Adapter, DCTAdapter, DCTFrequencyAdapter, SEAdapter
+from .model_utilities_adapt import Adapter, ConvAdapterDesign1, DCTAdapter, DCTFrequencyAdapter, SEAdapter
 
 class MixtureOfExistingAdapters(nn.Module):
     """
@@ -61,6 +61,7 @@ class MixtureOfExistingAdapters(nn.Module):
                 self.experts.append(Adapter(in_features=in_features, **(adapter_kwargs or {})))
                 self.expert_names.append('adapter_expert')
                 print("添加普通 Adapter 专家")
+            # 这里程序逻辑写的还不够健壮，待后续更改
         
         # 确保至少有一个专家
         if not self.experts:
@@ -101,6 +102,8 @@ class MixtureOfExistingAdapters(nn.Module):
             return Adapter(in_features=in_features, **kwargs)
         elif expert_type == 'SEAdapter':
             return SEAdapter(in_features=in_features, **kwargs)
+        elif expert_type == 'ConvAdapterDesign1':
+            return ConvAdapterDesign1(in_features=in_features, **kwargs)
         else:
             raise ValueError(f"不支持的专家类型: {expert_type}")
 
@@ -166,16 +169,16 @@ class MixtureOfExistingAdapters(nn.Module):
         # 4. 根据路由权重混合专家输出
         weighted_output = torch.sum(effective_routing_weights.unsqueeze(-1) * expert_outputs, dim=2) # [B, S, D]
         
-        # # 5. 计算辅助损失 (仅在训练时)
-        # if self.training:
-        #     softmax_scores_no_noise = F.softmax(router_logits_no_noise, dim=1)
-        #     aux_loss = self.aux_loss_coeff * load_importance_loss(
-        #         softmax_scores_no_noise, 
-        #         router_logits_no_noise,
-        #         self.num_experts, 
-        #         self.gate_noise_factor
-        #     )
-        #     self.aux_loss = aux_loss
+        # 5. 计算辅助损失 (仅在训练时)
+        if self.training:
+            softmax_scores_no_noise = F.softmax(router_logits_no_noise, dim=1)
+            aux_loss = self.aux_loss_coeff * load_importance_loss(
+                softmax_scores_no_noise, 
+                router_logits_no_noise,
+                self.num_experts, 
+                self.gate_noise_factor
+            )
+            self.aux_loss = aux_loss
             
         #     # 添加到全局辅助损失列表，以便在训练步骤中收集
         #     if not hasattr(torch, 'global_aux_loss'):

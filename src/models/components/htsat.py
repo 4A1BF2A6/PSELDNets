@@ -151,6 +151,13 @@ class WindowAttention(nn.Module):
                     in_features=dim,
                     **adapt_kwargs_global
                 )
+            elif adapter_type == 'conv_adapter':
+                print("启用的是 ConvAdapterDesign1 for WindowAttention")
+                from models.components.model_utilities_adapt import ConvAdapterDesign1
+                self.adapter_instance = ConvAdapterDesign1(
+                    in_features=dim,
+                    **adapt_kwargs_global
+                )
             elif adapter_type == 'mixture_existing':
                 print("启用的是 混合适配器 for WindowAttention")
                 from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
