@@ -159,10 +159,18 @@ class HTSAT(nn.Module):
         # 这符合ACCDOA表示中方向向量的范围要求
         self.final_act = nn.Tanh()
 
+        if 'room_checkpoints' in cfg_adapt.adapt_kwargs:
+            self.room_checkpoints = cfg_adapt.adapt_kwargs['room_checkpoints']
+        else:
+            self.room_checkpoints = {}
+            print('room_checkpoints is empty.')
+
         if pretrained_path:
             print('Loading pretrained model from {}...'.format(pretrained_path))
             self.load_ckpts(pretrained_path, audioset_pretrain)
         
+       
+
         self.freeze_layers_if_needed(cfg_adapt.get('method', ''))
         # 解冻tscam_conv层，因为tscam_conv层是用于适应不同输入通道的，所以需要解冻
         self.tscam_conv.requires_grad_(True)
@@ -202,36 +210,91 @@ class HTSAT(nn.Module):
             self.requires_grad_(True)
 
     def load_ckpts(self, pretrained_path, audioset_pretrain=True):
+        """
+        加载预训练模型权重
+        
+        Args:
+            pretrained_path: 预训练模型路径
+            audioset_pretrain: 是否为AudioSet预训练模型，默认为True
+        """
         if audioset_pretrain:
-            print('AudioSet-pretrained model...')
+            print('正在加载AudioSet预训练模型...')
+            # 加载预训练模型权重
             htsat_ckpts = torch.load(pretrained_path, map_location='cpu')['state_dict']
+            # 移除'sed_model.'前缀
             htsat_ckpts = {k.replace('sed_model.', ''): v for k, v in htsat_ckpts.items()}
+            
+            # 遍历当前模型的状态字典
             for key, value in self.encoder.state_dict().items():
                 try:
+                    # 特殊处理patch_embed.proj.weight
                     if key == 'patch_embed.proj.weight':
+                        # 根据输入通道数重复权重并归一化
                         paras = htsat_ckpts[key].repeat(1, self.in_channels, 1, 1) / self.in_channels
                         value.data.copy_(paras)
+                    # 跳过tscam_conv、head和adapter相关的层
                     elif 'tscam_conv' not in key and 'head' not in key and 'adapter' not in key:
                         value.data.copy_(htsat_ckpts[key])
-                    else: print(f'Skipping {key}...')
-                except: print(key, value.shape, htsat_ckpts[key].shape)
+                    else: 
+                        print(f'跳过 {key}...')
+                except: 
+                    print(key, value.shape, htsat_ckpts[key].shape)
+            
+            # 处理每个输入通道的标量参数
             for ich in range(self.in_channels):
+                # 复制批归一化层的参数
                 self.scalar[ich].weight.data.copy_(htsat_ckpts['bn0.weight'])
                 self.scalar[ich].bias.data.copy_(htsat_ckpts['bn0.bias'])
                 self.scalar[ich].running_mean.copy_(htsat_ckpts['bn0.running_mean'])
                 self.scalar[ich].running_var.copy_(htsat_ckpts['bn0.running_var'])
                 self.scalar[ich].num_batches_tracked.copy_(htsat_ckpts['bn0.num_batches_tracked'])
         else:
-            print('DataSynthSELD-pretrained model...')
+            print('正在加载DataSynthSELD预训练模型...')
+            # 加载预训练模型权重
             ckpt = torch.load(pretrained_path, map_location='cpu')['state_dict']
+            # 移除'net.'前缀
             ckpt = {k.replace('net.', ''): v for k, v in ckpt.items()}
-            ckpt = {k.replace('_orig_mod.', ''): v for k, v in ckpt.items()} # if compiling the model
+            # 如果模型被编译，移除'_orig_mod.'前缀
+            ckpt = {k.replace('_orig_mod.', ''): v for k, v in ckpt.items()}
+            
+            # 遍历当前模型的状态字典
             for idx, (key, value) in enumerate(self.state_dict().items()):
+                # 跳过fc、head、tscam_conv、lora和adapter相关的层
                 if key.startswith(('fc.', 'head.', 'tscam_conv.')) or 'lora' in key or 'adapter' in key:
-                    print(f'{idx+1}/{len(self.state_dict())}: Skipping {key}...')
+                    print(f'{idx+1}/{len(self.state_dict())}: 跳过 {key}...')
                 else:
-                    try: value.data.copy_(ckpt[key])
-                    except: print(f'{idx+1}/{len(self.state_dict())}: {key} not in ckpt.dict, skipping...')
+                    try: 
+                        value.data.copy_(ckpt[key])
+                    except: 
+                        print(f'{idx+1}/{len(self.state_dict())}: {key} 不在ckpt.dict中，跳过...')
+        
+        if hasattr(self, 'room_checkpoints'):
+            print('正在加载各个房间的适配器权重...')
+            for expert_id, (room_name, checkpoint_path) in enumerate(self.room_checkpoints.items()):
+                    print(f'加载 {room_name} 的适配器权重（映射到 expert {expert_id}）...')
+                    room_ckpt = torch.load(checkpoint_path, map_location='cpu')['state_dict']
+                    # 移除多余前缀
+                    room_ckpt = {k.replace('net.', ''): v for k, v in room_ckpt.items()}
+                    room_ckpt = {k.replace('_orig_mod.', ''): v for k, v in room_ckpt.items()}
+
+                    # 替换键名，加入 experts.{expert_id}
+                    adapted_ckpt = {}
+                    for k, v in room_ckpt.items():
+                        if 'adapter' in k and 'total_ops' not in k and 'total_params' not in k:
+                            # 将 'adapter_instance.fc1.weight' 变成 'adapter_instance.experts.{expert_id}.fc1.weight'
+                            new_k = k.replace('adapter_instance.', f'adapter_instance.experts.{expert_id}.')
+                            adapted_ckpt[new_k] = v
+
+                    # 执行赋值
+                    for k, v in adapted_ckpt.items():
+                        if k in self.state_dict():
+                            try:
+                                self.state_dict()[k].data.copy_(v)
+                                print(f'成功加载 {k} 的权重')
+                            except Exception as e:
+                                print(f'加载失败 {k}：{self.state_dict()[k].shape=} vs {v.shape=}')
+                        else:
+                            print(f'警告：找不到对应的键 {k}')
 
     def forward(self, x):
         """

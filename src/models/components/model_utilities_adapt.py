@@ -663,6 +663,42 @@ class LinearAdapter(nn.Module):
         return out
 
 
+## Adapter Fusion模块设计
+# class RoomAdapterFusion(MixtureOfExistingAdapters):
+#     """
+#     基于房间的混合适配器，使用余弦路由器进行专家选择
+#     """
+#     def __init__(self, in_features, room_adapter_paths, **kwargs):
+#         # 构建专家配置
+#         experts_config = []
+#         for room_name, path in room_adapter_paths.items():
+#             expert_config = {
+#                 'type': 'adapter',
+#                 'name': f'{room_name}_expert',
+#                 'kwargs': {
+#                     'pretrained_path': path
+#                 }
+#             }
+#             experts_config.append(expert_config)
+            
+#         super().__init__(
+#             in_features=in_features,
+#             experts_config=experts_config,
+#             **kwargs
+#         )
+        
+#     def get_room_weights(self, x):
+#         """
+#             获取不同房间的权重分布
+#         """
+#         # 获取路由器的原始logits
+#         router_logits = self.router(x)
+        
+#         # 计算softmax权重
+#         room_weights = F.softmax(router_logits, dim=1)
+        
+#         return room_weights
+
 if __name__ == '__main__':
     # 测试代码
     adapter = ConvAdapter(128, 128, width=32, groups=32)

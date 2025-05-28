@@ -188,4 +188,5 @@ class MixtureOfExistingAdapters(nn.Module):
         #     self.aux_loss = torch.tensor(0.0, device=x.device)
 
         # 6. 返回适配器效果 (delta)
+        
         return weighted_output, self.aux_loss

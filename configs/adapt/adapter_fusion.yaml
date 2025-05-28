@@ -1,0 +1,83 @@
+# configs/adapt/adapter_fusion.yaml
+method: adapter_fusion  # 指定使用adapter fusion方法
+
+adapt_kwargs:
+  type: 'mixture_existing'  # 使用混合适配器类型
+  position: ['MlpAdapter', 'SpatialAdapter']  # 在MLP和空间注意力层添加适配器
+  
+  # 专家配置列表
+  experts_config:
+    # 每个房间的适配器配置
+    - type: 'adapter'
+      name: 'room4_expert'
+      kwargs:
+        mlp_ratio: 0.5
+        act_layer: 'gelu'
+        adapter_scalar: 0.1
+    - type: 'adapter'
+      name: 'room6_expert'
+      kwargs:
+        mlp_ratio: 0.5
+        act_layer: 'gelu'
+        adapter_scalar: 0.1
+    - type: 'adapter'
+      name: 'room7_expert'
+      kwargs:
+        mlp_ratio: 0.5
+        act_layer: 'gelu'
+        adapter_scalar: 0.1
+    - type: 'adapter'
+      name: 'room9_expert'
+      kwargs:
+        mlp_ratio: 0.5
+        act_layer: 'gelu'
+        adapter_scalar: 0.1
+    - type: 'adapter'
+      name: 'room12_expert'
+      kwargs:
+        mlp_ratio: 0.5
+        act_layer: 'gelu'
+        adapter_scalar: 0.1
+    - type: 'adapter'
+      name: 'room13_expert'
+      kwargs:
+        mlp_ratio: 0.5
+        act_layer: 'gelu'
+        adapter_scalar: 0.1
+    - type: 'adapter'
+      name: 'room14_expert'
+      kwargs:
+        mlp_ratio: 0.5
+        act_layer: 'gelu'
+        adapter_scalar: 0.1
+    - type: 'adapter'
+      name: 'room21_expert'
+      kwargs:
+        mlp_ratio: 0.5
+        act_layer: 'gelu'
+        adapter_scalar: 0.1
+    - type: 'adapter'
+      name: 'room22_expert'
+      kwargs:
+        mlp_ratio: 0.5
+        act_layer: 'gelu'
+        adapter_scalar: 0.1
+
+  # 路由器配置
+  router_kwargs:
+    k: -1  # 选择top-2专家
+
+  gate_noise: 1.0  # 门控噪声因子
+  aux_loss_coeff: 0.01  # 辅助损失系数
+
+  # 预训练适配器路径
+  room_checkpoints:
+    room4: ckpts/adapters_rooms/room4_adapter.ckpt
+    room6: ckpts/adapters_rooms/room6_adapter.ckpt
+    room7: ckpts/adapters_rooms/room7_adapter.ckpt
+    room9: ckpts/adapters_rooms/room9_adapter.ckpt
+    room12: ckpts/adapters_rooms/room12_adapter.ckpt
+    room13: ckpts/adapters_rooms/room13_adapter.ckpt
+    room14: ckpts/adapters_rooms/room14_adapter.ckpt
+    room21: ckpts/adapters_rooms/room21_adapter.ckpt
+    room22: ckpts/adapters_rooms/room22_adapter.ckpt
