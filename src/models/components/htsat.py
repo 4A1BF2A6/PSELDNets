@@ -127,7 +127,7 @@ class WindowAttention(nn.Module):
 
         # 根据配置初始化不同类型的适配器
         if 'SpatialAdapter' in adapter_position:
-            if adapter_type == 'adapter':  # 原始简单适配器
+            if adapter_type == 'linear_adapter':  # 原始简单适配器
                 print("启用的是 Adapter for WindowAttention")
                 from models.components.model_utilities_adapt import Adapter
                 self.adapter_instance = Adapter(dim, **adapt_kwargs_global)

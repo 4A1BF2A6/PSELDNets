@@ -7,9 +7,6 @@ from models.components.conformer import ConformerBlocks
 from .model_utilities_adapt import Adapter
 from .mixture_of_existing_adapters import MixtureOfExistingAdapters
 
-
-
-
 def get_linear_layer(method='', rir_simulate='', *args, **kwargs):
     kwargs.pop('ADAPT_CONFIG', None)  # 移除 ADAPT_CONFIG，避免传递给 nn.Linear
     # method = method.split('_')
@@ -174,7 +171,7 @@ class Mlp(nn.Module):
         print(f'Global adapt_kwargs position: {self.adapter_position}')
 
         if is_mlp_adapter_pos:
-            if self.current_adapter_type == 'adapter':
+            if self.current_adapter_type == 'linear_adapter':
                 print('启用的是Adapter for MLP')
                 from .model_utilities_adapt import Adapter
                 self.adapter_instance = Adapter(in_features, **adapt_kwargs_global)

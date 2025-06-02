@@ -21,7 +21,7 @@ model:
     kwargs: {step_size: 55}
 
 trainer:
-  max_epochs: 140
+  max_epochs: 80
   check_val_every_n_epoch: 1
 
 seed: 2025
