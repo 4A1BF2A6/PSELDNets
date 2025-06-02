@@ -334,23 +334,24 @@ class SwinTransformerBlock(nn.Module):
         self.adapter_position = self.adapt_kwargs_global.get('position', [])
         
          # 初始化适配器
-        self.conv_adapter = None
+        self.adapter = None
+        print('======================SwinTransformerBlock=====================')
         if self.adapter_type == 'conv_adapter' and 'before_msa' in self.adapter_position:
-            print('======================SwinTransformerBlock=====================')
             print('启用的是ConvAdapterDesign1在before_msa')
             # 初始化ConvAdapterDesign1
-            self.conv_adapter = ConvAdapterDesign1(
+            self.adapter = ConvAdapterDesign1(
                 in_features=dim,  # 使用dim作为输入特征维度
-                mlp_ratio=self.adapt_kwargs_global.get('mlp_ratio', 0.25),
-                act_layer=self.adapt_kwargs_global.get('act_layer', 'gelu'),
-                adapter_scalar=self.adapt_kwargs_global.get('adapter_scalar', 1),
-                kernel_size=self.adapt_kwargs_global.get('kernel_size', 3),
-                padding=self.adapt_kwargs_global.get('padding', 1),
-                stride=self.adapt_kwargs_global.get('stride', 1),
-                groups=self.adapt_kwargs_global.get('groups', 1),
-                dilation=self.adapt_kwargs_global.get('dilation', 1)
+                **self.adapt_kwargs_global
             )
-            print('===================SwinTransformerBlock========================')
+        elif self.adapter_type == 'linear_adapter' and 'before_msa' in self.adapter_position:
+            print('启用的是LinearAdapter在before_msa')
+            # 初始化LinearAdapter
+            from models.components.model_utilities_adapt import Adapter
+            self.adapter = Adapter(
+                in_features=dim,
+                **self.adapt_kwargs_global
+            )
+        print('===================SwinTransformerBlock========================')
 
     def forward(self, x):
         H, W = self.input_resolution
@@ -369,11 +370,17 @@ class SwinTransformerBlock(nn.Module):
 
         '''
         x_conv = shortcut.view(B, H, W, C).permute(0, 3, 1, 2)
+        x_linear = shortcut
         # 如果配置了使用ConvAdapterDesign1
         if self.adapter_type == 'conv_adapter' and 'before_msa' in self.adapter_position:
-            if self.conv_adapter is not None:
+            if self.adapter is not None:
                 # 应用ConvAdapter
-                x = self.conv_adapter(x_conv, residual=shortcut)
+                x = self.adapter(x_conv, residual=shortcut)
+                x = x.view(B, H, W, C)
+                
+        elif self.adapter_type == 'linear_adapter' and 'before_msa' in self.adapter_position: 
+            if self.adapter is not None:
+                x = self.adapter(x_linear, residual=shortcut)
                 x = x.view(B, H, W, C)
 
         # cyclic shift

@@ -38,7 +38,7 @@ class Adapter(nn.Module):
         x = self.act(x)
         x = self.fc2(x)
         x = x * self.scale
-        if residual:
+        if residual is not None:
             x = x + residual
 
         return x
