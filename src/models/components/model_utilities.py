@@ -221,6 +221,9 @@ class Mlp(nn.Module):
                 print('MLP中没有启用任何特定类型的适配器或类型未知')
         else:
             print('MLPAdapter不在当前适配器位置列表中')
+            # from models.components.model_utilities_adapt import Adapter
+            # self.adapter_instance = Adapter(in_features, **adapt_kwargs_global)
+            # print('已偷偷启动普通Adapter在MLP中')
         print('=============  MLP ================')
 
 
@@ -250,7 +253,7 @@ class Mlp(nn.Module):
 
         main_path = self.drop(main_path) # 在原始的 HTSAT Swin MLP 中，最后的drop在适配器之后   
          
-        # return main_path # 原来的返回
+        # return main_path # 原来的返回值
         return main_path
 
 

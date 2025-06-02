@@ -7,8 +7,8 @@ from typing import Callable, List, Optional
 from torch import Tensor
 
 class Adapter(nn.Module):
-    def __init__(self, in_features, mlp_ratio=0.25, act_layer='gelu', 
-                 adapter_scalar=1, **kwargs):
+    def __init__(self, in_features, mlp_ratio=0.5, act_layer='gelu', 
+                 adapter_scalar=0.1, **kwargs):
         super().__init__()
         hidden_features = int(in_features * mlp_ratio)
         if act_layer == 'gelu':
@@ -523,6 +523,7 @@ class ConvAdapterDesign1(nn.Module):
                  adapter_scalar=1, kernel_size=3, padding=1, stride=1, 
                  groups=1, dilation=1, **kwargs):
         super().__init__()
+
         # 计算隐藏层维度
         hidden_features = int(in_features * mlp_ratio)
         
@@ -542,18 +543,18 @@ class ConvAdapterDesign1(nn.Module):
 
         # 1x1点卷积，用于降维
         self.conv1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, stride=1)
-        self.norm1 = nn.LayerNorm(hidden_features)
+        self.norm1 = nn.LayerNorm([hidden_features])
 
         # 深度卷积，用于特征提取
         self.conv2 = nn.Conv2d(hidden_features, hidden_features, 
                               kernel_size=kernel_size, stride=stride, 
                               groups=groups, padding=padding, 
                               dilation=int(dilation))
-        self.norm2 = nn.LayerNorm(hidden_features)
+        self.norm2 = nn.LayerNorm([hidden_features])
 
         # 1x1点卷积，用于升维
         self.conv3 = nn.Conv2d(hidden_features, in_features, kernel_size=1, stride=1)
-        self.norm3 = nn.LayerNorm(in_features)
+        self.norm3 = nn.LayerNorm([in_features])
     
     def forward(self, x, residual=None):
         """
@@ -564,38 +565,68 @@ class ConvAdapterDesign1(nn.Module):
         Returns:
             处理后的张量，形状为 [B, N, C]
         """
-        # 保存原始形状
-        B, N, C = x.shape
-        
-        # 重塑输入以适应卷积层 [B, N, C] -> [B, C, N, 1]
-        x = x.transpose(1, 2).unsqueeze(-1)
-        
-        # 第一个1x1卷积
-        out = self.conv1(x)  # [B, hidden_features, N, 1]
-        out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
-        out = self.norm1(out)
-        out = self.act(out)
-        out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
-        
-        # 深度卷积
-        out = self.conv2(out)  # [B, hidden_features, N, 1]
-        out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
-        out = self.norm2(out)
-        out = self.act(out)
-        out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
+        # 检查输入维度
+        if len(x.shape) == 3:  # [B, N, C]
 
-        # 第二个1x1卷积
-        out = self.conv3(out)  # [B, in_features, N, 1]
-        out = out.squeeze(-1).transpose(1, 2)  # [B, N, in_features]
-        out = self.norm3(out)
-        out = self.act(out)
+            # 保存原始形状
+            B, N, C = x.shape
+            
+            # 重塑输入以适应卷积层 [B, N, C] -> [B, C, N, 1]
+            x = x.transpose(1, 2).unsqueeze(-1)
+            
+            # 第一个1x1卷积
+            out = self.conv1(x)  # [B, hidden_features, N, 1]
+            out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
+            out = self.norm1(out)
+            out = self.act(out)
+            out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
+            
+            # 深度卷积
+            out = self.conv2(out)  # [B, hidden_features, N, 1]
+            out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
+            out = self.norm2(out)
+            out = self.act(out)
+            out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
 
-        # 应用缩放
-        out = out * self.scale
+            # 第二个1x1卷积
+            out = self.conv3(out)  # [B, in_features, N, 1]
+            out = out.squeeze(-1).transpose(1, 2)  # [B, N, in_features]
+            out = self.norm3(out)
+            out = self.act(out)
+            # 应用缩放
+            out = out * self.scale
         
-        # 可选残差连接
-        if residual is not None:
-            out = out + residual
+            # 可选残差连接
+            if residual is not None:
+                out = out + residual
+
+        else:  # 四维输入 [B, C, H, W]
+            B, C, H, W = x.shape
+            # 保持原始形状
+
+            # 第一个1x1卷积
+            out = self.conv1(x)
+            # out.shape is [B, C, H, W]  norm accept shape is B H W C
+            out = self.norm1(out.permute(0, 2, 3, 1))
+            out = self.act(out).permute(0, 3, 1, 2) # [B, C, H, W]
+            
+            # 深度卷积
+            out = self.conv2(out)
+            out = self.norm2(out.permute(0, 2, 3, 1)) # [B, H, W, C]
+            out = self.act(out).permute(0, 3, 1, 2) # [B, C, H, W]
+
+            # 第二个1x1卷积
+            out = self.conv3(out)
+            out = self.norm3(out.permute(0, 2, 3, 1)) # [B, H, W, C]
+            out = self.act(out).permute(0, 3, 1, 2) # [B, C, H, W]
+
+            # 应用缩放
+            out = out * self.scale
+            
+            out = out.reshape(B, H*W, C)
+            # 可选残差连接
+            if residual is not None:
+                out = out + residual
 
         return out
 
@@ -661,43 +692,6 @@ class LinearAdapter(nn.Module):
         out = self.fc2(out)
         out = out * self.se
         return out
-
-
-## Adapter Fusion模块设计
-# class RoomAdapterFusion(MixtureOfExistingAdapters):
-#     """
-#     基于房间的混合适配器，使用余弦路由器进行专家选择
-#     """
-#     def __init__(self, in_features, room_adapter_paths, **kwargs):
-#         # 构建专家配置
-#         experts_config = []
-#         for room_name, path in room_adapter_paths.items():
-#             expert_config = {
-#                 'type': 'adapter',
-#                 'name': f'{room_name}_expert',
-#                 'kwargs': {
-#                     'pretrained_path': path
-#                 }
-#             }
-#             experts_config.append(expert_config)
-            
-#         super().__init__(
-#             in_features=in_features,
-#             experts_config=experts_config,
-#             **kwargs
-#         )
-        
-#     def get_room_weights(self, x):
-#         """
-#             获取不同房间的权重分布
-#         """
-#         # 获取路由器的原始logits
-#         router_logits = self.router(x)
-        
-#         # 计算softmax权重
-#         room_weights = F.softmax(router_logits, dim=1)
-        
-#         return room_weights
 
 if __name__ == '__main__':
     # 测试代码

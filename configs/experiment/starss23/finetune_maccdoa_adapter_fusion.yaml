@@ -7,7 +7,7 @@ defaults:
   - _self_
 
 model:
-  batch_size: 32
+  batch_size: 16
   method: multi_accdoa
   loss:
     _target_: loss.multi_accdoa.Losses
@@ -21,7 +21,7 @@ model:
     kwargs: {step_size: 55}
 
 trainer:
-  max_epochs: 70
+  max_epochs: 140
   check_val_every_n_epoch: 1
 
 seed: 2025
@@ -29,3 +29,6 @@ compile: false
 
 # sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5]
 # post_processing: ACS
+
+# 使用滑动平均来平滑预测结果(必须与ACS方法同时使用)
+# post_processing_mv: move_avg

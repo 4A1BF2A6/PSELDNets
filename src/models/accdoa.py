@@ -295,7 +295,9 @@ class HTSAT(nn.Module):
                                 print(f'加载失败 {k}：{self.state_dict()[k].shape=} vs {v.shape=}')
                         else:
                             print(f'警告：找不到对应的键 {k}')
-
+        else:
+            print('没有对应的room_checkpoints属性，加载失败')
+            
     def forward(self, x):
         """
         x: waveform, (batch_size, num_channels, time_frames, mel_bins)

@@ -14,6 +14,7 @@ import torch.utils.checkpoint as checkpoint
 from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
 from models.components.model_utilities import (PatchEmbed, Mlp, DropPath,
                                                get_linear_layer, get_conv2d_layer)
+from models.components.model_utilities_adapt import ConvAdapterDesign1
 from models.components.utils import trunc_normal_, to_2tuple, interpolate
 
 # below codes are based and referred from https://github.com/microsoft/Swin-Transformer
@@ -183,8 +184,12 @@ class WindowAttention(nn.Module):
                 )
             else:
                 print("没有匹配的适配器类型或 'SpatialAdapter' 不在位置列表中。")
+               
         else:
             print("'SpatialAdapter' 不在适配器位置列表中。WindowAttention 将不会启用适配器。")
+            # from models.components.model_utilities_adapt import Adapter
+            # self.adapter_instance = Adapter(dim, **adapt_kwargs_global)
+            # print('已偷偷启动普通Adapter在WindowAttention中')
         
         print('==========WindowAttention初始化完成=============')
 
@@ -322,6 +327,31 @@ class SwinTransformerBlock(nn.Module):
 
         self.register_buffer("attn_mask", attn_mask)
 
+        # 获取适配器配置
+        self.adapt_kwargs_global = ADAPT_CONFIG.get('adapt_kwargs', {})
+        self.adapter_method = ADAPT_CONFIG.get('method', '')
+        self.adapter_type = self.adapt_kwargs_global.get('type', '')
+        self.adapter_position = self.adapt_kwargs_global.get('position', [])
+        
+         # 初始化适配器
+        self.conv_adapter = None
+        if self.adapter_type == 'conv_adapter' and 'before_msa' in self.adapter_position:
+            print('======================SwinTransformerBlock=====================')
+            print('启用的是ConvAdapterDesign1在before_msa')
+            # 初始化ConvAdapterDesign1
+            self.conv_adapter = ConvAdapterDesign1(
+                in_features=dim,  # 使用dim作为输入特征维度
+                mlp_ratio=self.adapt_kwargs_global.get('mlp_ratio', 0.25),
+                act_layer=self.adapt_kwargs_global.get('act_layer', 'gelu'),
+                adapter_scalar=self.adapt_kwargs_global.get('adapter_scalar', 1),
+                kernel_size=self.adapt_kwargs_global.get('kernel_size', 3),
+                padding=self.adapt_kwargs_global.get('padding', 1),
+                stride=self.adapt_kwargs_global.get('stride', 1),
+                groups=self.adapt_kwargs_global.get('groups', 1),
+                dilation=self.adapt_kwargs_global.get('dilation', 1)
+            )
+            print('===================SwinTransformerBlock========================')
+
     def forward(self, x):
         H, W = self.input_resolution
         B, L, C = x.shape    # B表示batch_size, L维度, C为通道
@@ -329,6 +359,22 @@ class SwinTransformerBlock(nn.Module):
         shortcut = x
         x = self.norm1(x)
         x = x.view(B, H, W, C)
+
+        '''
+        
+            这里我要加入残差串行的Adapter
+            在MSHA和LayerNorm之前加入Adapter
+            先进行局部卷积，在进行全局MHSA
+            X raw is [B, L, C]
+
+        '''
+        x_conv = shortcut.view(B, H, W, C).permute(0, 3, 1, 2)
+        # 如果配置了使用ConvAdapterDesign1
+        if self.adapter_type == 'conv_adapter' and 'before_msa' in self.adapter_position:
+            if self.conv_adapter is not None:
+                # 应用ConvAdapter
+                x = self.conv_adapter(x_conv, residual=shortcut)
+                x = x.view(B, H, W, C)
 
         # cyclic shift
         if self.shift_size > 0:

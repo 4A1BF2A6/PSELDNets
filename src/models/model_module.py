@@ -114,9 +114,11 @@ class SELDModelModule(BaseModelModule):
                         if 'label' in key}  # 获取标签数据
         # 根据配置选择是否应用后处理
         if self.cfg.get('post_processing') == 'ACS':
+            # 使用坐标变换和符号变换来增强预测结果
             batch_pred = self.post_processing(batch_data, method='ACS', output_format=self.method)
         else:
             batch_pred = self.common_step(batch_data)[0]  # 通过通用步骤获取预测结果
+
         self.step_system_outputs.append(batch_pred)  # 保存预测结果
         loss_dict = self.loss(batch_pred, batch_target)  # 计算验证损失
         for key in loss_dict.keys():

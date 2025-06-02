@@ -1,4 +1,7 @@
 # src/models/components/mixture_of_existing_adapters.py
+import time
+from matplotlib import pyplot as plt
+from sklearn.manifold import TSNE
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -107,6 +110,25 @@ class MixtureOfExistingAdapters(nn.Module):
         else:
             raise ValueError(f"不支持的专家类型: {expert_type}")
 
+    def visualRouteWeights(self, routing_weights):
+        # 假设 routing_weights 是一个 torch.Tensor，形状为 (B, S, num_experts)
+        # 转换为 NumPy 格式
+        routing_weights_np = routing_weights.detach().cpu().numpy()  # (B, S, num_experts)
+
+        # reshape 为 (B * S, num_experts) 作为样本数 × 特征数输入 T-SNE
+        num_samples = routing_weights_np.shape[0] * routing_weights_np.shape[1]
+        X = routing_weights_np.reshape(num_samples, -1)
+        tsne = TSNE(n_components=2, perplexity=30, random_state=42)
+        X_embedded = tsne.fit_transform(X)
+        plt.figure(figsize=(8, 6))
+        plt.scatter(X_embedded[:, 0], X_embedded[:, 1], s=5, alpha=0.7)
+        plt.title('T-SNE of Routing Weights')
+        plt.xlabel('Dim 1')
+        plt.ylabel('Dim 2')
+        plt.grid(True)
+        plt.savefig('routing_weights_tsne.png', dpi=300, bbox_inches='tight')
+        print('picture save sucessfully!')
+
     def forward(self, x, residual_input=None):
         """
         Args:
@@ -155,6 +177,16 @@ class MixtureOfExistingAdapters(nn.Module):
         
         # 重新整形路由权重
         effective_routing_weights = rearrange(routing_weights, '(b s) e -> b s e', b=batch_size) # [B, S, num_experts]
+        
+        # # 可视化路由权重
+        # # 每隔5秒进行一次可视化路由权重调用
+        # current_time = time.time()
+        # if not hasattr(self, 'last_visualization_time'):
+        #     self.last_visualization_time = current_time
+        #     self.visualRouteWeights(effective_routing_weights)
+        # elif current_time - self.last_visualization_time >= 5:
+        #     self.last_visualization_time = current_time
+        #     self.visualRouteWeights(effective_routing_weights)
 
         # 3. 应用专家并收集输出
         expert_outputs = []
@@ -190,3 +222,32 @@ class MixtureOfExistingAdapters(nn.Module):
         # 6. 返回适配器效果 (delta)
         
         return weighted_output, self.aux_loss
+
+
+def visualRouteWeights(routing_weights):
+    # 假设 routing_weights 是一个 torch.Tensor，形状为 (B, S, num_experts)
+    # 转换为 NumPy 格式
+    routing_weights_np = routing_weights.detach().cpu().numpy()  # (B, S, num_experts)
+
+    # reshape 为 (B * S, num_experts) 作为样本数 × 特征数输入 T-SNE
+    num_samples = routing_weights_np.shape[0] * routing_weights_np.shape[1]
+    X = routing_weights_np.reshape(num_samples, -1)
+    tsne = TSNE(n_components=2, perplexity=30, random_state=42)
+    X_embedded = tsne.fit_transform(X)
+    plt.figure(figsize=(8, 6))
+    plt.scatter(X_embedded[:, 0], X_embedded[:, 1], s=5, alpha=0.7)
+    plt.title('T-SNE of Routing Weights')
+    plt.xlabel('Dim 1')
+    plt.ylabel('Dim 2')
+    plt.grid(True)
+    plt.savefig('./routing_weights_tsne.png', dpi=300, bbox_inches='tight')
+    print('picture save sucessfully!')
+    plt.close() # 必须要关闭
+
+# if __name__ == "__main__":
+#     # 创建模拟的路由权重
+#     batch_size = 32
+#     seq_len = 50
+#     num_experts = 4
+#     routing_weights = torch.randn(batch_size, seq_len, num_experts)
+#     routing_weights = visualRouteWeights(routing_weights)

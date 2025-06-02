@@ -65,7 +65,7 @@ adapt_kwargs:
 
   # 路由器配置
   router_kwargs:
-    k: -1  # 选择top-2专家
+    k: 4   # 选择top-4专家
 
   gate_noise: 1.0  # 门控噪声因子
   aux_loss_coeff: 0.01  # 辅助损失系数

@@ -211,9 +211,15 @@ class BaseModelModule(L.LightningModule):
         elif self.method == 'multi_accdoa':
             pred = [loc_pred['multi_accdoa'].detach().cpu() for loc_pred in outputs_gather]
             pred = torch.cat(pred, dim=0)
+
             if self.cfg.get('post_processing') == 'move_avg':
                 print(pred.shape)
                 pred = self.post_processing(preds=pred, method='move_avg', paths_dict=self.paths_dict)
+            
+            if self.cfg.get('post_processing_mv') == 'move_avg':
+                print(pred.shape)
+                pred = self.post_processing(preds=pred, method='move_avg', paths_dict=self.paths_dict)
+            
             pred_sed, pred_doa = get_multi_accdoa_labels(pred, self.num_classes, sed_threshold)
             pred_sed = pred_sed.reshape(
                 pred_sed.shape[0], pred_sed.shape[1]*pred_sed.shape[2], -1
@@ -268,7 +274,13 @@ class BaseModelModule(L.LightningModule):
 
     def test_step(self, batch_sample, batch_idx):
         raise NotImplementedError
-    
+    '''
+        1. ACS (Augmented Coordinate System) 方法
+            通过坐标变换和符号变换来增强预测结果
+
+        2. move_avg (Moving Average) 方法
+            实现滑动平均来平滑预测结果
+    '''
     def post_processing(self, batch_sample=None, preds=None, paths_dict={},
                         method='ACS', output_format='multi_accdoa'):
         outputs = []
