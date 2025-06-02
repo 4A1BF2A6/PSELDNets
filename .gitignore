@@ -9,7 +9,7 @@ ckpts/
 _hdf5/
 
 # IDE配置
-.vscode/
+# .vscode/
 
 # 数据集
 datasets/
@@ -17,7 +17,7 @@ datasets/
 # 单元测试或临时文件
 .hypothesis/
 
-# Python缓存
+# Python缓存sta
 __pycache__/
 *.pyc
 
