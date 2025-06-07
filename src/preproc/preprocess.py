@@ -189,13 +189,144 @@ class Preprocess:
         hf.close()
 
 
-    def extract_adpit_label(self):
-        """提取用于ADPIT(辅助复制排列不变训练)的标签
+    # def extract_adpit_label(self):
+    #     """提取用于ADPIT(辅助复制排列不变训练)的标签
         
-        主要功能：
-        1. 处理多音源重叠情况
-        2. 为每个音源生成独立的标签
-        3. 支持最多6个同时发声的音源
+    #     主要功能：
+    #     1. 处理多音源重叠情况
+    #     2. 为每个音源生成独立的标签
+    #     3. 支持最多6个同时发声的音源
+    #     """
+
+    #     def _get_adpit_labels_for_file(_desc_file):
+    #         """
+    #         Reads description file and returns classification based SED labels and regression based DOA labels
+    #         for multi-ACCDOA with Auxiliary Duplicating Permutation Invariant Training (ADPIT)
+
+    #         :param _desc_file: dcase format of the meta file
+    #         :return: label_mat: of dimension [nb_frames, 6, 4(=act+XYZ), max_classes]
+    #         """
+
+    #         _nb_label_frames = list(_desc_file.keys())[-1]
+    #         _nb_lasses = self.num_classes
+    #         se_label = np.zeros((_nb_label_frames, 6, _nb_lasses))  # [nb_frames, 6, max_classes]
+    #         x_label = np.zeros((_nb_label_frames, 6, _nb_lasses))
+    #         y_label = np.zeros((_nb_label_frames, 6, _nb_lasses))
+    #         z_label = np.zeros((_nb_label_frames, 6, _nb_lasses))
+
+    #         for frame_ind, active_event_list in _desc_file.items():
+    #             if frame_ind < _nb_label_frames:
+    #                 active_event_list.sort(key=lambda x: x[0])  # sort for ov from the same class
+    #                 active_event_list_per_class = []
+    #                 for i, active_event in enumerate(active_event_list):
+    #                     active_event_list_per_class.append(active_event)
+    #                     if i == len(active_event_list) - 1:  # if the last
+    #                         if len(active_event_list_per_class) == 1:  # if no ov from the same class
+    #                             # a0----
+    #                             active_event_a0 = active_event_list_per_class[0]
+    #                             se_label[frame_ind, 0, active_event_a0[0]] = 1
+    #                             x_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[1]
+    #                             y_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[2]
+    #                             z_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[3]
+    #                         elif len(active_event_list_per_class) == 2:  # if ov with 2 sources from the same class
+    #                             # --b0--
+    #                             active_event_b0 = active_event_list_per_class[0]
+    #                             se_label[frame_ind, 1, active_event_b0[0]] = 1
+    #                             x_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[1]
+    #                             y_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[2]
+    #                             z_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[3]
+    #                             # --b1--
+    #                             active_event_b1 = active_event_list_per_class[1]
+    #                             se_label[frame_ind, 2, active_event_b1[0]] = 1
+    #                             x_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[1]
+    #                             y_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[2]
+    #                             z_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[3]
+    #                         else:  # if ov with more than 2 sources from the same class
+    #                             # ----c0
+    #                             active_event_c0 = active_event_list_per_class[0]
+    #                             se_label[frame_ind, 3, active_event_c0[0]] = 1
+    #                             x_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[1]
+    #                             y_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[2]
+    #                             z_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[3]
+    #                             # ----c1
+    #                             active_event_c1 = active_event_list_per_class[1]
+    #                             se_label[frame_ind, 4, active_event_c1[0]] = 1
+    #                             x_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[1]
+    #                             y_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[2]
+    #                             z_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[3]
+    #                             # ----c2
+    #                             active_event_c2 = active_event_list_per_class[2]
+    #                             se_label[frame_ind, 5, active_event_c2[0]] = 1
+    #                             x_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[1]
+    #                             y_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[2]
+    #                             z_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[3]
+
+    #                     elif active_event[0] != active_event_list[i + 1][0]:  # if the next is not the same class
+    #                         if len(active_event_list_per_class) == 1:  # if no ov from the same class
+    #                             # a0----
+    #                             active_event_a0 = active_event_list_per_class[0]
+    #                             se_label[frame_ind, 0, active_event_a0[0]] = 1
+    #                             x_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[1]
+    #                             y_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[2]
+    #                             z_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[3]
+    #                         elif len(active_event_list_per_class) == 2:  # if ov with 2 sources from the same class
+    #                             # --b0--
+    #                             active_event_b0 = active_event_list_per_class[0]
+    #                             se_label[frame_ind, 1, active_event_b0[0]] = 1
+    #                             x_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[1]
+    #                             y_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[2]
+    #                             z_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[3]
+    #                             # --b1--
+    #                             active_event_b1 = active_event_list_per_class[1]
+    #                             se_label[frame_ind, 2, active_event_b1[0]] = 1
+    #                             x_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[1]
+    #                             y_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[2]
+    #                             z_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[3]
+    #                         else:  # if ov with more than 2 sources from the same class
+    #                             # ----c0
+    #                             active_event_c0 = active_event_list_per_class[0]
+    #                             se_label[frame_ind, 3, active_event_c0[0]] = 1
+    #                             x_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[1]
+    #                             y_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[2]
+    #                             z_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[3]
+    #                             # ----c1
+    #                             active_event_c1 = active_event_list_per_class[1]
+    #                             se_label[frame_ind, 4, active_event_c1[0]] = 1
+    #                             x_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[1]
+    #                             y_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[2]
+    #                             z_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[3]
+    #                             # ----c2
+    #                             active_event_c2 = active_event_list_per_class[2]
+    #                             se_label[frame_ind, 5, active_event_c2[0]] = 1
+    #                             x_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[1]
+    #                             y_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[2]
+    #                             z_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[3]
+    #                         active_event_list_per_class = []
+
+    #         label_mat = np.stack((se_label, x_label, y_label, z_label), axis=2)  # [nb_frames, 6, 4(=act+XYZ), max_classes]
+    #         return label_mat
+        
+    #     self.meta_adpit_path.parent.mkdir(parents=True, exist_ok=True)
+    #     if self.meta_adpit_path.is_file():
+    #         self.meta_adpit_path.unlink()
+    #     hf = h5py.File(self.meta_adpit_path, 'w')
+
+    #     meta_list = [path for path in sorted(self.meta_dir.glob('*.csv')) if not path.name.startswith('.')]
+    #     iterator = tqdm(enumerate(meta_list), total=len(meta_list), unit='it')
+    #     for idx, meta_file in iterator:
+    #         fn = meta_file.stem
+    #         meta_dcase_format = load_output_format_file(meta_file)
+    #         meta_dcase_format = convert_output_format_polar_to_cartesian(meta_dcase_format)
+    #         meta_adpit = _get_adpit_labels_for_file(meta_dcase_format)
+    #         hf.create_dataset(name=f'{fn}/adpit', data=meta_adpit, dtype=np.float32)
+    #         tqdm.write('{}, {}'.format(idx, fn))
+    #     hf.close()
+
+    
+    def _extract_adpit_label(self):
+        """
+        Reads description file and returns classification based SED labels and regression based DOA labels
+        for multi-ACCDOA with Auxiliary Duplicating Permutation Invariant Training (ADPIT)
         """
 
         def _get_adpit_labels_for_file(_desc_file):
@@ -321,6 +452,139 @@ class Preprocess:
             hf.create_dataset(name=f'{fn}/adpit', data=meta_adpit, dtype=np.float32)
             tqdm.write('{}, {}'.format(idx, fn))
         hf.close()
+
+
+    '''
+        _extract_adpit_label与extract_adpit_label的主要区别是什么呢？
+        
+        DOA 表达形式	使用笛卡尔坐标（XYZ）	                                 使用球面坐标（Azimuth/Elevation）
+
+        标签 shape	[nb_frames, 6, 4, num_classes] （含 act+X+Y+Z）	           [nb_frames, 6, 3, num_classes] （含 act+azi+ele）
+        
+        数据类型	np.float32（float）	                                       bool for act, int16 for azimuth, int8 for elevation
+        
+        是否转换坐标	在函数中调用 convert_output_format_polar_to_cartesian	使用 polar 原始坐标（azimuth、elevation）
+        
+        用途适配性	更适用于基于 向量回归 的模型输入（XYZ）	                      更适用于基于 角度分类/回归 的模型输入（Azimuth/Elevation）
+    '''
+    
+    def extract_adpit_label(self):
+        """
+        Reads description file and returns classification based SED labels and regression based DOA labels
+        for multi-ACCDOA with Auxiliary Duplicating Permutation Invariant Training (ADPIT)
+        """
+
+        def _get_adpit_labels_for_file(_desc_file):
+            """
+            Reads description file and returns classification based SED labels and regression based DOA labels
+            for multi-ACCDOA with Auxiliary Duplicating Permutation Invariant Training (ADPIT)
+
+            :param _desc_file: dcase format of the meta file
+            :return: label_mat: of dimension [nb_frames, 6, 4(=act+XYZ), max_classes]
+            """
+
+            _nb_label_frames = list(_desc_file.keys())[-1] + 1
+            _nb_lasses = self.num_classes
+            se_label = np.zeros((_nb_label_frames, 6, _nb_lasses), dtype=bool)  # [nb_frames, 6, max_classes]
+            azi_label = np.zeros((_nb_label_frames, 6, _nb_lasses), dtype=np.int16)
+            ele_label = np.zeros((_nb_label_frames, 6, _nb_lasses), dtype=np.int8)
+
+            for frame_ind, active_event_list in _desc_file.items():
+                if frame_ind < _nb_label_frames:
+                    active_event_list.sort(key=lambda x: x[0])  # sort for ov from the same class
+                    active_event_list_per_class = []
+                    for i, active_event in enumerate(active_event_list):
+                        active_event_list_per_class.append(active_event)
+                        if i == len(active_event_list) - 1:  # if the last
+                            if len(active_event_list_per_class) == 1:  # if no ov from the same class
+                                # a0----
+                                active_event_a0 = active_event_list_per_class[0]
+                                se_label[frame_ind, 0, active_event_a0[0]] = 1
+                                azi_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[1]
+                                ele_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[2]
+                            elif len(active_event_list_per_class) == 2:  # if ov with 2 sources from the same class
+                                # --b0--
+                                active_event_b0 = active_event_list_per_class[0]
+                                se_label[frame_ind, 1, active_event_b0[0]] = 1
+                                azi_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[1]
+                                ele_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[2]
+                                # --b1--
+                                active_event_b1 = active_event_list_per_class[1]
+                                se_label[frame_ind, 2, active_event_b1[0]] = 1
+                                azi_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[1]
+                                ele_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[2]
+                            else:  # if ov with more than 2 sources from the same class
+                                # ----c0
+                                active_event_c0 = active_event_list_per_class[0]
+                                se_label[frame_ind, 3, active_event_c0[0]] = 1
+                                azi_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[1]
+                                ele_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[2]
+                                # ----c1
+                                active_event_c1 = active_event_list_per_class[1]
+                                se_label[frame_ind, 4, active_event_c1[0]] = 1
+                                azi_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[1]
+                                ele_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[2]
+                                # ----c2
+                                active_event_c2 = active_event_list_per_class[2]
+                                se_label[frame_ind, 5, active_event_c2[0]] = 1
+                                azi_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[1]
+                                ele_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[2]
+
+                        elif active_event[0] != active_event_list[i + 1][0]:  # if the next is not the same class
+                            if len(active_event_list_per_class) == 1:  # if no ov from the same class
+                                # a0----
+                                active_event_a0 = active_event_list_per_class[0]
+                                se_label[frame_ind, 0, active_event_a0[0]] = 1
+                                azi_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[1]
+                                ele_label[frame_ind, 0, active_event_a0[0]] = active_event_a0[2]
+                            elif len(active_event_list_per_class) == 2:  # if ov with 2 sources from the same class
+                                # --b0--
+                                active_event_b0 = active_event_list_per_class[0]
+                                se_label[frame_ind, 1, active_event_b0[0]] = 1
+                                azi_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[1]
+                                ele_label[frame_ind, 1, active_event_b0[0]] = active_event_b0[2]
+                                # --b1--
+                                active_event_b1 = active_event_list_per_class[1]
+                                se_label[frame_ind, 2, active_event_b1[0]] = 1
+                                azi_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[1]
+                                ele_label[frame_ind, 2, active_event_b1[0]] = active_event_b1[2]
+                            else:  # if ov with more than 2 sources from the same class
+                                # ----c0
+                                active_event_c0 = active_event_list_per_class[0]
+                                se_label[frame_ind, 3, active_event_c0[0]] = 1
+                                azi_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[1]
+                                ele_label[frame_ind, 3, active_event_c0[0]] = active_event_c0[2]
+                                # ----c1
+                                active_event_c1 = active_event_list_per_class[1]
+                                se_label[frame_ind, 4, active_event_c1[0]] = 1
+                                azi_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[1]
+                                ele_label[frame_ind, 4, active_event_c1[0]] = active_event_c1[2]
+                                # ----c2
+                                active_event_c2 = active_event_list_per_class[2]
+                                se_label[frame_ind, 5, active_event_c2[0]] = 1
+                                azi_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[1]
+                                ele_label[frame_ind, 5, active_event_c2[0]] = active_event_c2[2]
+                            active_event_list_per_class = []
+
+            return se_label, azi_label, ele_label
+        
+        self.meta_adpit_path.parent.mkdir(parents=True, exist_ok=True)
+        if self.meta_adpit_path.is_file():
+            self.meta_adpit_path.unlink()
+        hf = h5py.File(self.meta_adpit_path, 'w')
+
+        meta_list = [path for path in sorted(self.meta_dir.glob('*.csv')) if not path.name.startswith('.')]
+        iterator = tqdm(enumerate(meta_list), total=len(meta_list), unit='it')
+        for idx, meta_file in iterator:
+            fn = meta_file.stem
+            meta_dcase_format = load_output_format_file(meta_file)
+            meta_adpit = _get_adpit_labels_for_file(meta_dcase_format)
+            hf.create_dataset(name=f'{fn}/adpit/se', data=meta_adpit[0], dtype=np.bool_)
+            hf.create_dataset(name=f'{fn}/adpit/azi', data=meta_adpit[1], dtype=np.int16)
+            hf.create_dataset(name=f'{fn}/adpit/ele', data=meta_adpit[2], dtype=np.int8)
+            tqdm.write('{}, {}'.format(idx, fn))
+        hf.close()
+
 
 
     def extract_index(self):

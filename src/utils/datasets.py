@@ -37,7 +37,7 @@ class Synthesis(BaseDataset):
         self.max_ov = 3
         self.root_dir = Path(root_dir).joinpath(f'{dataset}')
 
-        if dataset != 'official':
+        if dataset != 'official' and dataset != 'official2024':
             cls_indices_path = self.root_dir.parent.joinpath('cls_indices_train.tsv')
             with open(cls_indices_path, 'r') as f:
                 for idx, line in enumerate(f.readlines()):

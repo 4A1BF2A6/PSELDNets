@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from utils.data_utilities import load_output_format_file
 
 # 支持wav格式的数据集列表
-wav_format_datasets = ['official', 'STARSS23', 'DCASE2021', 'L3DAS22', 'synth']
+wav_format_datasets = ['official', 'STARSS23', 'DCASE2021', 'L3DAS22', 'synth', 'official2024']
 
 class BaseDataset(Dataset):
     """SELD任务的基础数据集类

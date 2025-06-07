@@ -16,10 +16,18 @@ train_dataset:
     [fold3_room4, fold3_room6, fold3_room7, 
      fold3_room9, fold3_room12, fold3_room13, 
      fold3_room14, fold3_room21, fold3_room22] 
-  official: 
-    [fold1_room1, fold1_room3, fold1_room4, 
-     fold1_room6, fold1_room8, fold1_room10,
-     fold2_room2, fold2_room5, fold2_room9]
+  # 2023official
+  # official: 
+  #   [fold1_room1, fold1_room3, fold1_room4, 
+  #    fold1_room6, fold1_room8, fold1_room10,
+  #    fold2_room2, fold2_room5, fold2_room9]
+     
+  # 2024official
+  official2024:
+    [fold1_room1, fold1_room2, fold1_room3, 
+     fold1_room4, fold1_room5, fold1_room6,
+     fold2_room1, fold2_room2, fold2_room3]
+
 valid_dataset:
   STARSS23: 
     [fold4_room2, fold4_room8, fold4_room10, 
