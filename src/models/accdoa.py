@@ -159,15 +159,20 @@ class HTSAT(nn.Module):
         # 这符合ACCDOA表示中方向向量的范围要求
         self.final_act = nn.Tanh()
 
-        if 'room_checkpoints' in cfg_adapt.adapt_kwargs:
-            self.room_checkpoints = cfg_adapt.adapt_kwargs['room_checkpoints']
-        else:
+        if cfg_adapt.get('method', '') == 'none':
             self.room_checkpoints = {}
             print('room_checkpoints is empty.')
+           
+        else:
+            if 'room_checkpoints' in cfg_adapt.adapt_kwargs:
+                self.room_checkpoints = cfg_adapt.adapt_kwargs['room_checkpoints']
+            else:
+                self.room_checkpoints = {}
+                print('room_checkpoints is empty.')
 
         if pretrained_path:
-            print('Loading pretrained model from {}...'.format(pretrained_path))
-            self.load_ckpts(pretrained_path, audioset_pretrain)
+                print('Loading pretrained model from {}...'.format(pretrained_path))
+                self.load_ckpts(pretrained_path, audioset_pretrain)   
         
        
 

@@ -1,6 +1,6 @@
 # @package _global_
 defaults:
- - override /data: starss23/default.yaml
+ - override /data: starss23/official.yaml
  - override /loss: multi_accdoa.yaml
  - _self_
 
