@@ -750,14 +750,22 @@ class WConvAdapter(nn.Module):
     输入形状: [B, C, H, W] -> [B, C, H, W]
     """
     def __init__(self, inplanes, outplanes, width, 
-                kernel_size=3, padding=1, stride=1, groups=1, dilation=1, 
-                norm_layer=None, act_layer=None, den=None, **kwargs):
+                kernel_size=3, padding=1, stride=1, groups=1,
+                act_layer=None, den=None, **kwargs):
         super().__init__()
-        
-        if norm_layer is None:
-            norm_layer = nn.Identity
-        if act_layer is None:
-            act_layer = nn.Identity
+
+        # 配置激活函数
+        if act_layer == 'gelu':
+            self.act = nn.GELU()
+        elif act_layer == 'relu':
+            self.act = nn.ReLU()
+        else:
+            raise ValueError(f"Activation layer {act_layer} not supported")
+
+        # if norm_layer is None:
+        #     norm_layer = nn.Identity
+        # if act_layer is None:
+        #     act_layer = nn.Identity
             
         # SELD任务特定的权重设置
         if den is None:
@@ -774,7 +782,6 @@ class WConvAdapter(nn.Module):
                             groups=groups, 
                             padding=padding, 
                             den=den)
-        self.act = act_layer()
 
         # 1x1点卷积
         self.conv2 = nn.Conv2d(width, outplanes, kernel_size=1, stride=1, padding=0, groups=1)

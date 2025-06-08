@@ -2,6 +2,7 @@
 defaults:
  - override /data: starss23/official.yaml
  - override /loss: multi_accdoa.yaml
+ - override /augment: augmix1.yaml
  - _self_
 
 model:
@@ -18,3 +19,9 @@ model:
 trainer:
   max_epochs: 70
   check_val_every_n_epoch: 1
+
+sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5]
+post_processing: ACS
+
+# 使用滑动平均来平滑预测结果(必须与ACS方法同时使用)
+# post_processing_mv: move_avg

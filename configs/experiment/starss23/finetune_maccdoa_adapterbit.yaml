@@ -1,7 +1,7 @@
 # @package _global_
 defaults:                                       # 默认配置项定义部分
-#  - override /data: starss23/default.yaml        # 覆盖数据配置，使用STARSS23数据集
- - override /data: starss23/official.yaml        # 覆盖数据配置，使用STARSS23数据集
+ - override /data: starss23/default.yaml        # 覆盖数据配置，使用STARSS23数据集
+#  - override /data: starss23/official.yaml        # 覆盖数据配置，使用STARSS23数据集
  - override /loss: multi_accdoa.yaml            # 覆盖损失函数配置，使用多活动类定位方法（多ACCDOA）
  - override /adapt: adapter.yaml                # 覆盖适配器配置，使用基本适配器
 #  - override /augment: augmix1.yaml   
@@ -18,7 +18,7 @@ model:                                          # 模型相关配置部分
     audioset_pretrain: false                    # 不使用AudioSet预训练权重
     
   optimizer:                                    # 优化器配置
-    kwargs: {lr: 0.001}                        # 学习率设置为0.0001
+    kwargs: {lr: 0.0001}                        # 学习率设置为0.0001
   lr_scheduler:                                 # 学习率调度器配置
     kwargs: {step_size: 55}                     # 每55个epoch调整一次学习率
   

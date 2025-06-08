@@ -6,6 +6,7 @@
 # Swin Transformer for Computer Vision: https://arxiv.org/pdf/2103.14030.pdf
 
 
+import math
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
@@ -115,51 +116,59 @@ class WindowAttention(nn.Module):
         # 获取适配器配置
         adapt_kwargs_global = ADAPT_CONFIG.get('adapt_kwargs', {})
         adapter_method = ADAPT_CONFIG.get('method', '')
-        adapter_type = adapt_kwargs_global.get('type', '')
+        self.adapter_type = adapt_kwargs_global.get('type', '')
         adapter_position = adapt_kwargs_global.get('position', [])
         
         self.adapter_instance = None  # 统一的适配器实例
 
         print('==========WindowAttention初始化=============')
         print(f'ADAPT_CONFIG方法: {adapter_method}')
-        print(f'全局adapt_kwargs类型: {adapter_type}')
+        print(f'全局adapt_kwargs类型: {self.adapter_type}')
         print(f'全局adapt_kwargs位置: {adapter_position}')
 
         # 根据配置初始化不同类型的适配器
         if 'SpatialAdapter' in adapter_position:
-            if adapter_type == 'linear_adapter':  # 原始简单适配器
+            if self.adapter_type == 'linear_adapter':  # 原始简单适配器
                 print("启用的是 Adapter for WindowAttention")
                 from models.components.model_utilities_adapt import Adapter
                 self.adapter_instance = Adapter(dim, **adapt_kwargs_global)
-            elif adapter_type == 'adapter_dct':
+            elif self.adapter_type == 'adapter_dct':
                 print("启用的是 DCTAdapter for WindowAttention")
                 from models.components.model_utilities_adapt import DCTAdapter
                 self.adapter_instance = DCTAdapter(
                     in_features=dim,
                     **adapt_kwargs_global
                 )
-            elif adapter_type == 'adapter_frequency':
+            elif self.adapter_type == 'adapter_frequency':
                 print("启用的是 DCTFrequencyAdapter for WindowAttention")
                 from models.components.model_utilities_adapt import DCTFrequencyAdapter
                 self.adapter_instance = DCTFrequencyAdapter(
                     in_features=dim,
                     **adapt_kwargs_global
                 )
-            elif adapter_type == 'adapter_se':
+            elif self.adapter_type == 'adapter_se':
                 print("启用的是 SEAdapter for WindowAttention")
                 from models.components.model_utilities_adapt import SEAdapter
                 self.adapter_instance = SEAdapter(
                     in_features=dim,
                     **adapt_kwargs_global
                 )
-            elif adapter_type == 'conv_adapter':
+            elif self.adapter_type == 'conv_adapter':
                 print("启用的是 ConvAdapterDesign1 for WindowAttention")
                 from models.components.model_utilities_adapt import ConvAdapterDesign1
                 self.adapter_instance = ConvAdapterDesign1(
                     in_features=dim,
                     **adapt_kwargs_global
                 )
-            elif adapter_type == 'mixture_existing':
+            elif self.adapter_type == 'wConvAdapter':
+                print("启用的是 wConvAdapter for WindowAttention")
+                from models.components.model_utilities_adapt import WConvAdapter
+                self.adapter_instance = WConvAdapter(
+                    inplanes=dim,
+                    outplanes=dim,
+                    **adapt_kwargs_global
+                )
+            elif self.adapter_type == 'mixture_existing':
                 print("启用的是 混合适配器 for WindowAttention")
                 from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
                 # 获取各种配置参数
@@ -232,13 +241,24 @@ class WindowAttention(nn.Module):
         x_main = self.proj(x_main)
         # attn.shape is [B, num_heads, 补丁数量, 补丁数量]
         # 应用适配器（如果存在）       x_main.shape is [B, 补丁的数量, 每个补丁的特征维度]
+        adapted_x_main = 0.0
         if self.adapter_instance is not None:
+
             if isinstance(self.adapter_instance, MixtureOfExistingAdapters):
                 adapted_x_main, aux_loss = self.adapter_instance(x_main)
-                x_main = x_main + adapted_x_main
             else:
-                adapted_x_main = self.adapter_instance(x_main)
-                x_main = x_main + adapted_x_main
+                if self.adapter_type == 'wConvAdapter':
+                    B = x_main.shape[0]
+                    N = x_main.shape[1]
+                    C = x_main.shape[2]
+
+                    H = W = int(math.sqrt(N))
+                    adapted_x_main = self.adapter_instance(x_main.transpose(1, 2).reshape(B, C, H, W))
+                    adapted_x_main = adapted_x_main.reshape(B, N, C)
+                else:
+                    adapted_x_main = self.adapter_instance(x_main)
+
+            x_main = adapted_x_main + x_main
             
         # if aux_loss_from_adapter is not None:
             #     current_aux_loss += aux_loss_from_adapter

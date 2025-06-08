@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -191,6 +192,14 @@ class Mlp(nn.Module):
                 print('启用的是ConvAdapterDesign1适配器 for MLP')
                 from .model_utilities_adapt import ConvAdapterDesign1
                 self.adapter_instance = ConvAdapterDesign1(in_features, **adapt_kwargs_global)
+            elif self.current_adapter_type == 'wConvAdapter':
+                print('启用的是wConvAdapter适配器 for MLP')
+                from .model_utilities_adapt import WConvAdapter
+                self.adapter_instance = WConvAdapter(
+                    inplanes=in_features,
+                    outplanes=in_features,
+                    **adapt_kwargs_global
+                )
             elif self.current_adapter_type == 'mixture_existing': # 混合适配器
                 print('启用的是 混合适配器 for MLP')
 
@@ -238,16 +247,26 @@ class Mlp(nn.Module):
 
         if self.adapter_instance is not None:
             if isinstance(self.adapter_instance, MixtureOfExistingAdapters):
-                adapted_output, aux_loss = self.adapter_instance(main_path) # 适配器作用于 main_path
-                main_path = main_path + adapted_output # 更新 main_path
+                adapted_output, aux_loss = self.adapter_instance(x) # 适配器作用于 x
                 # print(f"current_aux_loss 设备: {current_aux_loss.device}")
                 # print(f"aux_loss 设备: {aux_loss.device}")
                 current_aux_loss = current_aux_loss.to(aux_loss.device)
                 current_aux_loss += aux_loss
             else:
-                adapted_output = self.adapter_instance(main_path) # 适配器作用于 main_path
-                main_path = main_path + adapted_output # 更新 main_path
-
+                if self.current_adapter_type == 'wConvAdapter':
+                    B = x.shape[0]
+                    N = x.shape[1]
+                    C = x.shape[2]
+                    # 在 Swin Transformer 中，H 和 W 通常是相等的，所以我们可以计算平方根
+                    H = W = int(math.sqrt(x.shape[1]))  # 计算 H 和 W
+                    # 重塑张量 [B, N, C] -> [B, C, H, W]
+                    x = x.transpose(1, 2).reshape(B, C, H, W)
+                    adapted_output = self.adapter_instance(x) # 适配器作用于 x
+                    adapted_output = adapted_output.reshape(B, N, C)
+                else:
+                    adapted_output = self.adapter_instance(x)
+               
+        main_path = main_path + adapted_output # 更新 main_path
         main_path = self.drop(main_path) # 在原始的 HTSAT Swin MLP 中，最后的drop在适配器之后   
          
         # return main_path # 原来的返回值
