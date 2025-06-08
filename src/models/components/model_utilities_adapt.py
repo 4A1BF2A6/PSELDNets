@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Callable, List, Optional
 from torch import Tensor
+import numpy as np
 
 class Adapter(nn.Module):
     def __init__(self, in_features, mlp_ratio=0.5, act_layer='gelu', 
@@ -348,7 +349,7 @@ class DCTFrequencyAdapter(nn.Module):
         self.norm = nn.LayerNorm(in_features)
         self.down = nn.Linear(in_features, hidden_features)
         self.up = nn.Linear(hidden_features, in_features)
-        
+
     def forward(self, x, residual=None):
 
         '''
@@ -692,11 +693,135 @@ class LinearAdapter(nn.Module):
         out = self.fc2(out)
         out = out * self.se
         return out
+    
+'''
+    
+    原论文里面的加权卷积模块
+
+'''
+class wConv2d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, den, stride=1, padding=1, groups=1, bias=False):
+        super(wConv2d, self).__init__()       
+        # 初始化基本参数
+        self.stride = stride          # 卷积步长
+        self.padding = padding        # 填充大小
+        self.kernel_size = kernel_size # 卷积核大小
+        self.groups = groups          # 分组卷积的组数
+        
+        # 初始化卷积权重
+        self.weight = nn.Parameter(torch.empty(out_channels, in_channels // groups, kernel_size, kernel_size))
+        # 使用Kaiming初始化方法初始化权重
+        nn.init.kaiming_normal_(self.weight, mode='fan_out', nonlinearity='relu')        
+        
+        # 初始化偏置项（如果bias=True）
+        self.bias = nn.Parameter(torch.zeros(out_channels)) if bias else None
+
+        # 设置设备为CPU
+        device = torch.device('cpu')  
+        
+        # 创建权重矩阵alfa
+        # 将den数组与1.0和den的翻转版本拼接
+        self.register_buffer('alfa', torch.cat([torch.tensor(den, device=device),
+                                              torch.tensor([1.0], device=device),
+                                              torch.flip(torch.tensor(den, device=device), dims=[0])]))
+        
+        # 计算外积矩阵Phi
+        self.register_buffer('Phi', torch.outer(self.alfa, self.alfa))
+
+        # 检查Phi矩阵的维度是否与卷积核大小匹配
+        if self.Phi.shape != (kernel_size, kernel_size):
+            raise ValueError(f"Phi shape {self.Phi.shape} must match kernel size ({kernel_size}, {kernel_size})")
+
+    def forward(self, x):
+        # 将Phi矩阵移动到与输入相同的设备上
+        Phi = self.Phi.to(x.device)
+        # 将权重与Phi矩阵相乘
+        weight_Phi = self.weight * Phi
+        # 执行卷积操作
+        return F.conv2d(x, weight_Phi, bias=self.bias, stride=self.stride, padding=self.padding, groups=self.groups)
+
+'''
+    我的加权卷积模块
+'''
+class WConvAdapter(nn.Module):
+    """
+    Conv-Adapter的第二个设计方案（v4版本）
+    结构：加权深度卷积 -> 1x1卷积 + 通道注意力
+    输入形状: [B, C, H, W] -> [B, C, H, W]
+    """
+    def __init__(self, inplanes, outplanes, width, 
+                kernel_size=3, padding=1, stride=1, groups=1, dilation=1, 
+                norm_layer=None, act_layer=None, den=None, **kwargs):
+        super().__init__()
+        
+        if norm_layer is None:
+            norm_layer = nn.Identity
+        if act_layer is None:
+            act_layer = nn.Identity
+            
+        # SELD任务特定的权重设置
+        if den is None:
+            # 对于3x3卷积核，设置3个权重值
+            den = [0.7, 1.0, 0.7]  # 时间维度的权重分布
+
+        # 确保width能被groups整除
+        width = (width // groups) * groups
+
+        # 使用加权深度卷积
+        self.conv1 = wConv2d(inplanes, width, 
+                            kernel_size=kernel_size, 
+                            stride=stride, 
+                            groups=groups, 
+                            padding=padding, 
+                            den=den)
+        self.act = act_layer()
+
+        # 1x1点卷积
+        self.conv2 = nn.Conv2d(width, outplanes, kernel_size=1, stride=1, padding=0, groups=1)
+
+        # 通道注意力机制
+        self.se = nn.Parameter(1.0 * torch.ones((1, outplanes, 1, 1)), requires_grad=True)
+    
+    def forward(self, x):
+        """
+        前向传播
+        Args:
+            x: 输入张量，形状为 [B, C, H, W]
+        Returns:
+            处理后的张量，形状为 [B, C, H, W]
+        """
+        # 加权深度卷积
+        out = self.conv1(x)
+        out = self.act(out)
+        
+        # 1x1卷积
+        out = self.conv2(out)
+        
+        # 通道注意力
+        out = out * self.se
+        
+        return out
+
 
 if __name__ == '__main__':
     # 测试代码
-    adapter = ConvAdapter(128, 128, width=32, groups=32)
-    print(adapter.conv1.weight.shape)  # 打印深度卷积权重形状
-    print(adapter.conv2.weight.shape)  # 打印点卷积权重形状
+    # adapter = ConvAdapter(128, 128, width=32, groups=32)
+    # print(adapter.conv1.weight.shape)  # 打印深度卷积权重形状
+    # print(adapter.conv2.weight.shape)  # 打印点卷积权重形状
 
+    adapter = WConvAdapter(
+        inplanes=96,   # 输入通道数
+        outplanes=96,  # 输出通道数
+        kernel_size=7,
+        padding=3,
+        stride=1,
+        width=32,      # 中间层通道数
+        mlp_ratio=0.5, # 中间层通道数与输入通道数的比例
+        groups=4,     # 分组卷积的组数
+        den = [0.7, 1.0, 0.7]  # 时间维度的权重设置
+    )
 
+    # 测试输入
+    x = torch.randn(32, 96, 64, 64)  # [B, C, H, W] 形状的输入
+    out = adapter(x)  # 输出形状为 [B, C, H, W]
+    print(out.shape)  # 应该输出 torch.Size([32, 96, 64, 64])
