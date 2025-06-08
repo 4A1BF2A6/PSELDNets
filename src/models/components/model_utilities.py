@@ -218,9 +218,9 @@ class Mlp(nn.Module):
                 print('MLP中没有启用任何特定类型的适配器或类型未知')
         else:
             print('MLPAdapter不在当前适配器位置列表中')
-            from models.components.model_utilities_adapt import Adapter
-            self.adapter_instance = Adapter(in_features, **adapt_kwargs_global)
-            print('已偷偷启动普通Adapter在MLP中')
+            # from models.components.model_utilities_adapt import Adapter
+            # self.adapter_instance = Adapter(in_features, **adapt_kwargs_global)
+            # print('已偷偷启动普通Adapter在MLP中')
         print('=============  MLP ================')
 
 
