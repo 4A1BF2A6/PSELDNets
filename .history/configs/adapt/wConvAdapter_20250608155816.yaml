@@ -13,7 +13,7 @@ adapt_kwargs:
   # padding: 1
   padding: 3
   stride: 1
-  groups: 8
+  groups: 4
   width: 32
   # den: [0.5]
   den: [0.7, 1.0, 0.7]

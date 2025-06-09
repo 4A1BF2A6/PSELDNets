@@ -1,19 +1,20 @@
-method: conv_adapter
+method: wConvAdapter
 
 # Adapter of ACCDOA or mACCDOA
 adapt_kwargs:
   position: [MlpAdapter, SpatialAdapter] # MlpAdapter or SpatialAdapter or before_msa
   # type: linear_adapter # adapter
-  type: conv_adapter # adapter
+  type: wConvAdapter # adapter
   mlp_ratio: 0.5
   adapter_scalar: 0.1 # learnable_scalar
-  act_layer: 'gelu'
 
   # 卷积参数
-  kernel_size: 3
-  padding: 1
+  kernel_size: 7
+  padding: 3
   stride: 1
-  groups: 1
-  dilation: 1
-  # norm_layer: nn.LayerNorm
-  # act_layer: nn.GELU
+  groups: 4
+  width: 32
+  den: [0.5]
+
+  act_layer: 'gelu'
+  
