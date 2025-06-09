@@ -164,9 +164,8 @@ class WindowAttention(nn.Module):
                 print("启用的是 wConvAdapter for WindowAttention")
                 from models.components.model_utilities_adapt import WConvAdapter
                 self.adapter_instance = WConvAdapter(
-                    # inplanes=dim,
-                    # outplanes=dim,
-                    in_features=dim,
+                    inplanes=dim,
+                    outplanes=dim,
                     **adapt_kwargs_global
                 )
             elif self.adapter_type == 'mixture_existing':

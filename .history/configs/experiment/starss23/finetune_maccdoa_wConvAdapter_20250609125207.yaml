@@ -6,7 +6,7 @@ defaults:
  - _self_
 
 model:
-  batch_size: 4
+  batch_size: 8
   method: multi_accdoa
   backbone: HTSAT
   loss:
@@ -15,7 +15,7 @@ model:
     pretrained_path: ckpts/mACCDOA-HTSAT-0.567.ckpt
     audioset_pretrain: false
   optimizer:
-    kwargs: {lr: 0.0001}
+    kwargs: {lr: 0.0005}
   lr_scheduler:
     kwargs: {step_size: 55}
 

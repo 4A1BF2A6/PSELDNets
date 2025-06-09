@@ -166,7 +166,6 @@ class WindowAttention(nn.Module):
                 self.adapter_instance = WConvAdapter(
                     # inplanes=dim,
                     # outplanes=dim,
-                    in_features=dim,
                     **adapt_kwargs_global
                 )
             elif self.adapter_type == 'mixture_existing':

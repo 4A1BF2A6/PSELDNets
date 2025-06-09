@@ -1,0 +1,71 @@
+method: adapter_layer 
+
+adapt_kwargs:
+  type: mixture_existing 
+  position: [MlpAdapter, SpatialAdapter] # 在MLP层和注意力层后添加适配器
+  
+  # 混合适配器本身的参数
+  gate_noise_factor: 1.0 # 门控噪声因子，用于训练时增加探索
+  aux_loss_coeff: 0.01   # 辅助损失的系数
+
+  # 路由器参数
+  router_kwargs:
+    proj_dim: 128 # 内部投影维度
+    k: 2          # 选择 top-k 专家
+    init_t: 0.5   # 温度初始化参数
+
+  # 动态专家配置，替代之前的单独专家配置
+  experts_config:
+    - type: dct     # 专家类型
+      name: dct_expert # 专家名称
+      kwargs:       # 专家参数
+        mlp_ratio: 0.5
+        act_layer: gelu
+        adapter_scalar: 0.1
+        dct_kernel_size: 3
+        # dct_groups: 1
+        
+    - type: SEAdapter # 专家类型
+      name: freq_expert # 专家名称
+      kwargs:        # 专家参数
+        mlp_ratio: 0.5
+        act_layer: gelu
+        adapter_scalar: 0.1
+        
+    - type: adapter  # 普通适配器专家
+      name: base_adapter_1 # 专家名称
+      kwargs:         # 专家参数
+        mlp_ratio: 0.5
+        act_layer: gelu
+        adapter_scalar: 0.1
+
+    - type: conv_adapter
+      mlp_ratio: 0.5
+      adapter_scalar: 0.1
+      act_layer: 'gelu'
+      kernel_size: 3
+      padding: 1
+      stride: 1
+      groups: 1
+      dilation: 1
+
+    # - type: adapter  # 普通适配器专家
+    #   name: base_adapter_2 # 专家名称
+    #   kwargs:         # 专家参数
+    #     mlp_ratio: 0.25
+    #     act_layer: gelu
+    #     adapter_scalar: 0.1
+
+    # - type: adapter  # 普通适配器专家
+    #   name: base_adapter_3 # 专家名称
+    #   kwargs:         # 专家参数
+    #     mlp_ratio: 0.25
+    #     act_layer: gelu
+    #     adapter_scalar: 0.1
+
+    # - type: adapter  # 普通适配器专家
+    #   name: base_adapter_4 # 专家名称
+    #   kwargs:         # 专家参数
+    #     mlp_ratio: 0.25
+    #     act_layer: gelu
+    #     adapter_scalar: 0.1    

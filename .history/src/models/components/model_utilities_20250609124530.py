@@ -196,9 +196,8 @@ class Mlp(nn.Module):
                 print('启用的是wConvAdapter适配器 for MLP')
                 from .model_utilities_adapt import WConvAdapter
                 self.adapter_instance = WConvAdapter(
-                    # inplanes=in_features,
-                    # outplanes=in_features,
-                    in_features,
+                    inplanes=in_features,
+                    outplanes=in_features,
                     **adapt_kwargs_global
                 )
             elif self.current_adapter_type == 'mixture_existing': # 混合适配器

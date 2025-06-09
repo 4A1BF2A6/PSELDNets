@@ -198,7 +198,7 @@ class Mlp(nn.Module):
                 self.adapter_instance = WConvAdapter(
                     # inplanes=in_features,
                     # outplanes=in_features,
-                    in_features,
+                    in_features=in_features,
                     **adapt_kwargs_global
                 )
             elif self.current_adapter_type == 'mixture_existing': # 混合适配器
