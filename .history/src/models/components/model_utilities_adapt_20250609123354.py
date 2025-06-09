@@ -792,7 +792,7 @@ class WConvAdapter(nn.Module):
         self.norm2 = nn.LayerNorm([hidden_features])
 
         # 1x1点卷积，用于升维
-        self.conv3 = nn.Conv2d(hidden_features, in_features, 
+        self.conv3 = Conv2d(hidden_features, in_features, 
                             kernel_size=1, stride=1
                             )  # 1x1卷积使用单一权重
         self.norm3 = nn.LayerNorm([in_features])

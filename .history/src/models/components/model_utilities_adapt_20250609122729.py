@@ -522,7 +522,7 @@ class ConvAdapterDesign1(nn.Module):
     """
     def __init__(self, in_features, mlp_ratio=0.25, act_layer='gelu',
                  adapter_scalar=1, kernel_size=3, padding=1, stride=1, 
-                 groups=1, dilation=1, **kwargs):
+                 groups=1, dilation=1, den=None, **kwargs):
         super().__init__()
 
         # 计算隐藏层维度
@@ -542,19 +542,25 @@ class ConvAdapterDesign1(nn.Module):
         else:
             self.scale = adapter_scalar
 
-        # 1x1点卷积，用于降维
-        self.conv1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, stride=1)
+        # 设置默认的den参数
+        if den is None:
+            den = [0.7, 1.0, 0.7]  # 默认的3x3卷积核权重
+
+        # 1x1点卷积，用于降维 - 使用普通卷积而不是加权卷积
+        self.conv1 = nn.Conv2d(in_features, hidden_features, 
+                              kernel_size=1, stride=1)
         self.norm1 = nn.LayerNorm([hidden_features])
 
-        # 深度卷积，用于特征提取
-        self.conv2 = nn.Conv2d(hidden_features, hidden_features, 
-                              kernel_size=kernel_size, stride=stride, 
-                              groups=groups, padding=padding, 
-                              dilation=int(dilation))
+        # 深度卷积，用于特征提取 - 使用加权卷积
+        self.conv2 = wConv2d(hidden_features, hidden_features, 
+                            kernel_size=kernel_size, stride=stride, 
+                            groups=groups, padding=padding, 
+                            den=den)  # 使用传入的den参数
         self.norm2 = nn.LayerNorm([hidden_features])
 
-        # 1x1点卷积，用于升维
-        self.conv3 = nn.Conv2d(hidden_features, in_features, kernel_size=1, stride=1)
+        # 1x1点卷积，用于升维 - 使用普通卷积而不是加权卷积
+        self.conv3 = nn.Conv2d(hidden_features, in_features, 
+                              kernel_size=1, stride=1)
         self.norm3 = nn.LayerNorm([in_features])
     
     def forward(self, x, residual=None):
@@ -779,9 +785,9 @@ class WConvAdapter(nn.Module):
             den = [0.7, 1.0, 0.7]  # 默认的3x3卷积核权重
 
         # 1x1点卷积，用于降维
-        self.conv1 = nn.Conv2d(in_features, hidden_features, 
-                            kernel_size=1, stride=1
-                            )  # 1x1卷积使用单一权重
+        self.conv1 = wConv2d(in_features, hidden_features, 
+                            kernel_size=1, stride=1, 
+                            den=[1.0])  # 1x1卷积使用单一权重
         self.norm1 = nn.LayerNorm([hidden_features])
 
         # 深度卷积，用于特征提取
@@ -792,9 +798,9 @@ class WConvAdapter(nn.Module):
         self.norm2 = nn.LayerNorm([hidden_features])
 
         # 1x1点卷积，用于升维
-        self.conv3 = nn.Conv2d(hidden_features, in_features, 
-                            kernel_size=1, stride=1
-                            )  # 1x1卷积使用单一权重
+        self.conv3 = wConv2d(hidden_features, in_features, 
+                            kernel_size=1, stride=1,
+                            den=[1.0])  # 1x1卷积使用单一权重
         self.norm3 = nn.LayerNorm([in_features])
     
     def forward(self, x, residual=None):

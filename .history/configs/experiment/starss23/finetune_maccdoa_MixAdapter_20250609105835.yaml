@@ -19,7 +19,7 @@ model:                                          # 模型相关配置部分
     
   optimizer:                                    # 优化器配置
     # kwargs: {lr: 0.0001}                        # 学习率设置为0.0001
-    kwargs: {lr: 0.0005}
+    kwargs: {lr: 0.0001}
   lr_scheduler:                                 # 学习率调度器配置
     kwargs: {step_size: 55}                     # 每55个epoch调整一次学习率
   

@@ -746,58 +746,50 @@ class wConv2d(nn.Module):
 class WConvAdapter(nn.Module):
     """
     Conv-Adapter的第一个设计方案（v2版本）
-    结构：1x1卷积 -> 加权深度卷积 -> 1x1卷积 
+    结构：加权深度卷积 -> 1x1卷积 + 通道注意力
     输入形状: [B, C, H, W] -> [B, C, H, W]
     """
-    def __init__(self, in_features, mlp_ratio=0.5, act_layer='gelu',
-                 adapter_scalar=1, kernel_size=3, padding=1, stride=1, 
-                 groups=1, dilation=1, den=None, **kwargs):
+    def __init__(self, inplanes, outplanes, width, 
+                kernel_size=3, padding=1, stride=1, groups=1,
+                act_layer=None, den=None, **kwargs):
         super().__init__()
 
-        # 计算隐藏层维度
-        hidden_features = int(in_features * mlp_ratio)
-        
         # 配置激活函数
-        if isinstance(act_layer, str):
-            if act_layer.lower() == 'gelu':
-                self.act = nn.GELU()
-            elif act_layer.lower() == 'relu':
-                self.act = nn.ReLU()
-            else:
-                raise ValueError(f"Activation layer {act_layer} not supported")
+        if act_layer == 'gelu':
+            self.act = nn.GELU()
+        elif act_layer == 'relu':
+            self.act = nn.ReLU()
         else:
-            self.act = act_layer()
+            raise ValueError(f"Activation layer {act_layer} not supported")
+
+        # if norm_layer is None:
+        #     norm_layer = nn.Identity
+        # if act_layer is None:
+        #     act_layer = nn.Identity
             
-        # 配置缩放因子
-        if adapter_scalar == 'learnable_scalar':
-            self.scale = nn.Parameter(torch.ones(1))
-        else:
-            self.scale = adapter_scalar
-
-        # 设置默认的den参数
+        # SELD任务特定的权重设置
         if den is None:
-            den = [0.7, 1.0, 0.7]  # 默认的3x3卷积核权重
+            # 对于3x3卷积核，设置3个权重值
+            den = [0.7, 1.0, 0.7]  # 时间维度的权重分布
 
-        # 1x1点卷积，用于降维
-        self.conv1 = nn.Conv2d(in_features, hidden_features, 
-                            kernel_size=1, stride=1
-                            )  # 1x1卷积使用单一权重
-        self.norm1 = nn.LayerNorm([hidden_features])
+        # 确保width能被groups整除
+        width = (width // groups) * groups
 
-        # 深度卷积，用于特征提取
-        self.conv2 = wConv2d(hidden_features, hidden_features, 
-                            kernel_size=kernel_size, stride=stride, 
-                            groups=groups, padding=padding, 
-                            den=den)  # 使用传入的den参数
-        self.norm2 = nn.LayerNorm([hidden_features])
+        # 使用加权深度卷积
+        self.conv1 = wConv2d(inplanes, width, 
+                            kernel_size=kernel_size, 
+                            stride=stride, 
+                            groups=groups, 
+                            padding=padding, 
+                            den=den)
 
-        # 1x1点卷积，用于升维
-        self.conv3 = nn.Conv2d(hidden_features, in_features, 
-                            kernel_size=1, stride=1
-                            )  # 1x1卷积使用单一权重
-        self.norm3 = nn.LayerNorm([in_features])
+        # 1x1点卷积
+        self.conv2 = nn.Conv2d(width, outplanes, kernel_size=1, stride=1, padding=0, groups=1)
+
+        # 通道注意力机制
+        self.se = nn.Parameter(1.0 * torch.ones((1, outplanes, 1, 1)), requires_grad=True)
     
-    def forward(self, x, residual=None):
+    def forward(self, x):
         """
         前向传播
         Args:
@@ -805,66 +797,15 @@ class WConvAdapter(nn.Module):
         Returns:
             处理后的张量，形状为 [B, C, H, W]
         """
-        # 检查输入维度
-        if len(x.shape) == 3:  # [B, N, C]
-            # 保存原始形状
-            B, N, C = x.shape
-            
-            # 重塑输入以适应卷积层 [B, N, C] -> [B, C, N, 1]
-            x = x.transpose(1, 2).unsqueeze(-1)
-            
-            # 第一个1x1卷积
-            out = self.conv1(x)  # [B, hidden_features, N, 1]
-            out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
-            out = self.norm1(out)
-            out = self.act(out)
-            out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
-            
-            # 深度卷积
-            out = self.conv2(out)  # [B, hidden_features, N, 1]
-            out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
-            out = self.norm2(out)
-            out = self.act(out)
-            out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
-
-            # 第二个1x1卷积
-            out = self.conv3(out)  # [B, in_features, N, 1]
-            out = out.squeeze(-1).transpose(1, 2)  # [B, N, in_features]
-            out = self.norm3(out)
-            out = self.act(out)
-            # 应用缩放
-            out = out * self.scale
+        # 加权深度卷积
+        out = self.conv1(x)
+        out = self.act(out)
         
-            # 可选残差连接
-            if residual is not None:
-                out = out + residual
-
-        else:  # 四维输入 [B, C, H, W]
-            B, C, H, W = x.shape
-            # 保持原始形状
-
-            # 第一个1x1卷积
-            out = self.conv1(x)
-            out = self.norm1(out.permute(0, 2, 3, 1))
-            out = self.act(out).permute(0, 3, 1, 2)
-            
-            # 深度卷积
-            out = self.conv2(out)
-            out = self.norm2(out.permute(0, 2, 3, 1))
-            out = self.act(out).permute(0, 3, 1, 2)
-
-            # 第二个1x1卷积
-            out = self.conv3(out)
-            out = self.norm3(out.permute(0, 2, 3, 1))
-            out = self.act(out).permute(0, 3, 1, 2)
-
-            # 应用缩放
-            out = out * self.scale
-            
-            out = out.reshape(B, H*W, C)
-            # 可选残差连接
-            if residual is not None:
-                out = out + residual
+        # 1x1卷积
+        out = self.conv2(out)
+        
+        # 通道注意力
+        out = out * self.se
         
         return out
     
@@ -942,7 +883,8 @@ if __name__ == '__main__':
     # print(adapter.conv2.weight.shape)  # 打印点卷积权重形状
 
     adapter = WConvAdapter(
-        in_features=96,   # 输入通道数
+        inplanes=96,   # 输入通道数
+        outplanes=96,  # 输出通道数
         kernel_size=7,
         padding=3,
         stride=1,

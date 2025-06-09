@@ -8,7 +8,7 @@ defaults:
  - _self_                                                        # 表示当前配置文件优先级高于默认配置
 
 model:                                          # 模型相关配置部分
-  batch_size: 16                                # 训练批次大小设置为32
+  batch_size: 32                                # 训练批次大小设置为32
   method: multi_accdoa                          # 使用多活动类定位方法（multi-Activity-Coupled Cartesian DOA）
   # backbone: HTSAT                               # 使用HTSAT作为骨干网络
   loss:                                         # 损失函数配置
@@ -19,7 +19,7 @@ model:                                          # 模型相关配置部分
     
   optimizer:                                    # 优化器配置
     # kwargs: {lr: 0.0001}                        # 学习率设置为0.0001
-    kwargs: {lr: 0.0005}
+    kwargs: {lr: 0.001}
   lr_scheduler:                                 # 学习率调度器配置
     kwargs: {step_size: 55}                     # 每55个epoch调整一次学习率
   
@@ -35,4 +35,4 @@ compile: false                                  # 不使用PyTorch 2.0编译功�
 sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5]  # 为STARSS23的13个类别设置SED阈值
 # 后处理配置
 # post_processing: null
-post_processing: ACS
+# post_processing: ACS

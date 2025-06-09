@@ -779,9 +779,9 @@ class WConvAdapter(nn.Module):
             den = [0.7, 1.0, 0.7]  # 默认的3x3卷积核权重
 
         # 1x1点卷积，用于降维
-        self.conv1 = nn.Conv2d(in_features, hidden_features, 
-                            kernel_size=1, stride=1
-                            )  # 1x1卷积使用单一权重
+        self.conv1 = wConv2d(in_features, hidden_features, 
+                            kernel_size=1, stride=1, 
+                            den=[1.0])  # 1x1卷积使用单一权重
         self.norm1 = nn.LayerNorm([hidden_features])
 
         # 深度卷积，用于特征提取
@@ -792,9 +792,9 @@ class WConvAdapter(nn.Module):
         self.norm2 = nn.LayerNorm([hidden_features])
 
         # 1x1点卷积，用于升维
-        self.conv3 = nn.Conv2d(hidden_features, in_features, 
-                            kernel_size=1, stride=1
-                            )  # 1x1卷积使用单一权重
+        self.conv3 = wConv2d(hidden_features, in_features, 
+                            kernel_size=1, stride=1,
+                            den=[1.0])  # 1x1卷积使用单一权重
         self.norm3 = nn.LayerNorm([in_features])
     
     def forward(self, x, residual=None):

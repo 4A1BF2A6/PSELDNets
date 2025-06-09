@@ -779,9 +779,9 @@ class WConvAdapter(nn.Module):
             den = [0.7, 1.0, 0.7]  # 默认的3x3卷积核权重
 
         # 1x1点卷积，用于降维
-        self.conv1 = nn.Conv2d(in_features, hidden_features, 
-                            kernel_size=1, stride=1
-                            )  # 1x1卷积使用单一权重
+        self.conv1 = wConv2d(in_features, hidden_features, 
+                            kernel_size=1, stride=1, 
+                            den=[1.0])  # 1x1卷积使用单一权重
         self.norm1 = nn.LayerNorm([hidden_features])
 
         # 深度卷积，用于特征提取
@@ -792,12 +792,12 @@ class WConvAdapter(nn.Module):
         self.norm2 = nn.LayerNorm([hidden_features])
 
         # 1x1点卷积，用于升维
-        self.conv3 = nn.Conv2d(hidden_features, in_features, 
-                            kernel_size=1, stride=1
-                            )  # 1x1卷积使用单一权重
+        self.conv3 = wConv2d(hidden_features, in_features, 
+                            kernel_size=1, stride=1,
+                            den=[1.0])  # 1x1卷积使用单一权重
         self.norm3 = nn.LayerNorm([in_features])
     
-    def forward(self, x, residual=None):
+    def forward(self, x):
         """
         前向传播
         Args:
@@ -805,66 +805,15 @@ class WConvAdapter(nn.Module):
         Returns:
             处理后的张量，形状为 [B, C, H, W]
         """
-        # 检查输入维度
-        if len(x.shape) == 3:  # [B, N, C]
-            # 保存原始形状
-            B, N, C = x.shape
-            
-            # 重塑输入以适应卷积层 [B, N, C] -> [B, C, N, 1]
-            x = x.transpose(1, 2).unsqueeze(-1)
-            
-            # 第一个1x1卷积
-            out = self.conv1(x)  # [B, hidden_features, N, 1]
-            out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
-            out = self.norm1(out)
-            out = self.act(out)
-            out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
-            
-            # 深度卷积
-            out = self.conv2(out)  # [B, hidden_features, N, 1]
-            out = out.squeeze(-1).transpose(1, 2)  # [B, N, hidden_features]
-            out = self.norm2(out)
-            out = self.act(out)
-            out = out.transpose(1, 2).unsqueeze(-1)  # [B, hidden_features, N, 1]
-
-            # 第二个1x1卷积
-            out = self.conv3(out)  # [B, in_features, N, 1]
-            out = out.squeeze(-1).transpose(1, 2)  # [B, N, in_features]
-            out = self.norm3(out)
-            out = self.act(out)
-            # 应用缩放
-            out = out * self.scale
+        # 加权深度卷积
+        out = self.conv1(x)
+        out = self.act(out)
         
-            # 可选残差连接
-            if residual is not None:
-                out = out + residual
-
-        else:  # 四维输入 [B, C, H, W]
-            B, C, H, W = x.shape
-            # 保持原始形状
-
-            # 第一个1x1卷积
-            out = self.conv1(x)
-            out = self.norm1(out.permute(0, 2, 3, 1))
-            out = self.act(out).permute(0, 3, 1, 2)
-            
-            # 深度卷积
-            out = self.conv2(out)
-            out = self.norm2(out.permute(0, 2, 3, 1))
-            out = self.act(out).permute(0, 3, 1, 2)
-
-            # 第二个1x1卷积
-            out = self.conv3(out)
-            out = self.norm3(out.permute(0, 2, 3, 1))
-            out = self.act(out).permute(0, 3, 1, 2)
-
-            # 应用缩放
-            out = out * self.scale
-            
-            out = out.reshape(B, H*W, C)
-            # 可选残差连接
-            if residual is not None:
-                out = out + residual
+        # 1x1卷积
+        out = self.conv2(out)
+        
+        # 通道注意力
+        out = out * self.se
         
         return out
     
@@ -942,7 +891,8 @@ if __name__ == '__main__':
     # print(adapter.conv2.weight.shape)  # 打印点卷积权重形状
 
     adapter = WConvAdapter(
-        in_features=96,   # 输入通道数
+        inplanes=96,   # 输入通道数
+        outplanes=96,  # 输出通道数
         kernel_size=7,
         padding=3,
         stride=1,

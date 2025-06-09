@@ -1,10 +1,9 @@
 # @package _global_
 defaults:                 
-#  - override /augment: augmix1.yaml                               
- - override /data: starss23/official.yaml                         # 覆盖数据配置，使用STARSS23数据集
+ - override /augment: augmix1.yaml                               
+ - override /data: starss23/default.yaml                         # 覆盖数据配置，使用STARSS23数据集
  - override /loss: multi_accdoa.yaml                             # 覆盖损失函数配置，使用多活动类定位方法（多ACCDOA）
  - override /adapt: mixture_existing_adapter.yaml                # 覆盖适配器配置，使用基本适配器
- - override /augment: augmix1.yaml
  - _self_                                                        # 表示当前配置文件优先级高于默认配置
 
 model:                                          # 模型相关配置部分
@@ -19,12 +18,12 @@ model:                                          # 模型相关配置部分
     
   optimizer:                                    # 优化器配置
     # kwargs: {lr: 0.0001}                        # 学习率设置为0.0001
-    kwargs: {lr: 0.0005}
+    kwargs: {lr: 0.0001}
   lr_scheduler:                                 # 学习率调度器配置
     kwargs: {step_size: 55}                     # 每55个epoch调整一次学习率
   
 trainer:                                        # 训练器配置部分
-  max_epochs: 80                                # 最大训练轮数为70，STARSS23需要更多epoch
+  max_epochs: 70                                # 最大训练轮数为70，STARSS23需要更多epoch
   check_val_every_n_epoch: 1                    # 每1个epoch进行一次验证
 
 # 增加随机种子以确保实验可复现
