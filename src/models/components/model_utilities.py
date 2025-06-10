@@ -12,24 +12,16 @@ def get_linear_layer(method='', rir_simulate='', *args, **kwargs):
     kwargs.pop('ADAPT_CONFIG', None)  # 移除 ADAPT_CONFIG，避免传递给 nn.Linear
     # method = method.split('_')
     adapt_kws = kwargs.pop('adapt_kwargs', {}) if 'adapt_kwargs' in kwargs else {}
-    method = adapt_kws.get('method', method)
-    adapt_type = adapt_kws.get('type', '')
     if method == 'lora':
-        from models.components.model_utilities_adapt import Linear
-        in_features = kwargs.get('in_features')
-        r = adapt_kws.get('r', 4)
-        alpha = adapt_kws.get('lora_alpha', 4)
-        dropout = adapt_kws.get('lora_dropout', 0)
-        # 对于LoRA适配器，需要重新添加adapt_kwargs
-        kwargs['adapt_kwargs'] = adapt_kws
-        return Linear(r=r, lora_alpha=alpha, lora_dropout=dropout, 
-                      merge_weights=False, **kwargs)
-    elif adapt_type == 'adapter' and 'adapter_dct' in method:
-        # 正常的线性层，DCT适配器将单独添加
-        return nn.Linear(*args, **kwargs)
+        from models.components.model_utilities_adapt import Linear as LinearLoRA
+        kwargs.update(kwargs.get('linear_kwargs', {}))
+        kwargs = {k: v for k, v in kwargs.items() if '_kwargs' not in k}
+
+        return LinearLoRA(*args, **kwargs)
     else:
+        kwargs = {k: v for k, v in kwargs.items() if '_kwargs' not in k}
+
         return nn.Linear(*args, **kwargs)
-    
 
 def get_conv2d_layer(method='', rir_simulate='', **kwargs):
     # method = method.split('_')
