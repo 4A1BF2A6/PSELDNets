@@ -13,7 +13,8 @@ adapt_kwargs:
   kernel_size: 3
   padding: 1
   stride: 1
-  groups: 1
-  dilation: 1
+  # groups: 1
+  groups: 16
+  # dilation: 1
   # norm_layer: nn.LayerNorm
   # act_layer: nn.GELU
