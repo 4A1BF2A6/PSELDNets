@@ -1,4 +1,4 @@
-method: wConvAdapter
+method: wconv_adapter
 
 # Adapter of ACCDOA or mACCDOA
 adapt_kwargs:
