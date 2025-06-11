@@ -108,7 +108,7 @@ class SELDModelModule(BaseModelModule):
             self.train_loss_dict[key].update(loss_dict[key])
         
         # return loss_dict[self.loss.loss_type]  # 返回主损失用于反向传播
-        return total_loss  # 返回主损失用于反向传播
+        return total_loss  # 返回总损失用于反向传播
 
     def validation_step(self, batch_sample, batch_idx):
         # 验证步骤，处理一个批次的验证数据
