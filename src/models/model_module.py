@@ -93,22 +93,25 @@ class SELDModelModule(BaseModelModule):
         loss_dict[self.loss.loss_type] = loss_dict[self.loss.loss_type]  # 确保主损失存在
         
         # 收集并添加辅助损失
-        # aux_loss = 0.0
-        # if hasattr(torch, 'global_aux_loss') and torch.global_aux_loss:
-        #     aux_loss = sum(torch.global_aux_loss)
-        #     torch.global_aux_loss = []  # 清空全局辅助损失列表
-        #     loss_dict['aux_loss'] = aux_loss
-        #     loss_dict[self.loss.loss_type] = loss_dict[self.loss.loss_type] + aux_loss
-        
+        aux_loss = 0.0
+        for module in self.net.modules():
+            if hasattr(module, 'aux_loss'):
+                aux_loss += module.aux_loss
+                # print(module)
+                # print(f"aux_loss: {aux_loss}")
+
+        # 将辅助损失添加到主损失中
+        total_loss = loss_dict[self.loss.loss_type] + aux_loss
+
         # 更新训练损失字典
         for key in loss_dict.keys():
             self.train_loss_dict[key].update(loss_dict[key])
         
-        return loss_dict[self.loss.loss_type]  # 返回主损失用于反向传播
+        # return loss_dict[self.loss.loss_type]  # 返回主损失用于反向传播
+        return total_loss  # 返回主损失用于反向传播
 
     def validation_step(self, batch_sample, batch_idx):
         # 验证步骤，处理一个批次的验证数据
-        
         batch_data = batch_sample['data']  # 获取输入数据
         batch_target = {key: value for key, value in batch_sample.items()
                         if 'label' in key}  # 获取标签数据

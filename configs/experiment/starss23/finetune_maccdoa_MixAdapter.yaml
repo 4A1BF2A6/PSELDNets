@@ -1,10 +1,9 @@
 # @package _global_
 defaults:                 
-#  - override /augment: augmix1.yaml                               
- - override /data: starss23/official.yaml                         # 覆盖数据配置，使用STARSS23数据集
+ - override /data: starss23/default.yaml                         # 覆盖数据配置，使用STARSS23数据集
  - override /loss: multi_accdoa.yaml                             # 覆盖损失函数配置，使用多活动类定位方法（多ACCDOA）
  - override /adapt: mixture_existing_adapter.yaml                # 覆盖适配器配置，使用基本适配器
- - override /augment: augmix1.yaml
+#  - override /augment: augmix1.yaml
  - _self_                                                        # 表示当前配置文件优先级高于默认配置
 
 model:                                          # 模型相关配置部分
@@ -32,7 +31,7 @@ seed: 2025                                        # 设置随机种子为42
 compile: false                                  # 不使用PyTorch 2.0编译功能
 
 # STARSS23特定配置
-sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5]  # 为STARSS23的13个类别设置SED阈值
+# sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5]  # 为STARSS23的13个类别设置SED阈值
 # 后处理配置
 # post_processing: null
-post_processing: ACS
+# post_processing: ACS

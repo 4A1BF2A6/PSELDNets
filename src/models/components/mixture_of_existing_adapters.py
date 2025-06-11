@@ -206,22 +206,16 @@ class MixtureOfExistingAdapters(nn.Module):
             softmax_scores_no_noise = F.softmax(router_logits_no_noise, dim=1)
             aux_loss = self.aux_loss_coeff * load_importance_loss(
                 softmax_scores_no_noise, 
-                router_logits_no_noise,
+                # router_logits_no_noise,
+                topk_logits,
                 self.num_experts, 
                 self.gate_noise_factor
             )
             self.aux_loss = aux_loss
-            
-        #     # 添加到全局辅助损失列表，以便在训练步骤中收集
-        #     if not hasattr(torch, 'global_aux_loss'):
-        #         torch.global_aux_loss = []
-        #     torch.global_aux_loss.append(aux_loss)
-        # else:
-        #     self.aux_loss = torch.tensor(0.0, device=x.device)
 
         # 6. 返回适配器效果 (delta)
-        
-        return weighted_output, self.aux_loss
+        # self.aux_loss
+        return weighted_output
 
 
 def visualRouteWeights(routing_weights):

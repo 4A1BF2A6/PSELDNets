@@ -240,11 +240,7 @@ class Mlp(nn.Module):
 
         if self.adapter_instance is not None:
             if isinstance(self.adapter_instance, MixtureOfExistingAdapters):
-                adapted_output, aux_loss = self.adapter_instance(x) # 适配器作用于 x
-                # print(f"current_aux_loss 设备: {current_aux_loss.device}")
-                # print(f"aux_loss 设备: {aux_loss.device}")
-                current_aux_loss = current_aux_loss.to(aux_loss.device)
-                current_aux_loss += aux_loss
+                adapted_output = self.adapter_instance(x) # 适配器作用于 x
             else:
                 if self.current_adapter_type == 'wConvAdapter':
                     B = x.shape[0]

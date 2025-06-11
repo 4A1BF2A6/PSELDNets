@@ -246,7 +246,7 @@ class WindowAttention(nn.Module):
         if self.adapter_instance is not None:
 
             if isinstance(self.adapter_instance, MixtureOfExistingAdapters):
-                adapted_x_main, aux_loss = self.adapter_instance(x_main)
+                adapted_x_main = self.adapter_instance(x_main)
             else:
                 if self.adapter_type == 'wConvAdapter':
                     B = x_main.shape[0]
