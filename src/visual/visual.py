@@ -393,9 +393,9 @@ def main(cfg: DictConfig):
         log.info(f"正在加载模型权重: {cfg.ckpt_path}")
         checkpoint = torch.load(cfg.ckpt_path, map_location='cpu')
         if 'state_dict' in checkpoint:
-            model.load_state_dict(checkpoint['state_dict'], strict=False)
+            model.load_state_dict(checkpoint['state_dict'], strict=True) # True
         else:
-            model.load_state_dict(checkpoint, strict=False)
+            model.load_state_dict(checkpoint, strict=True)
     
     # 移动模型到GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

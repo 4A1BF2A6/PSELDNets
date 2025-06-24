@@ -199,9 +199,6 @@ class Mlp(nn.Module):
                 # mixture_specific_kwargs 应从 adapt_kwargs_global 中提取
                 # 提取专家配置
                 experts_config = adapt_kwargs_global.get('experts_config', None)
-                # dct_expert_config = adapt_kwargs_global.get('dct_expert_kwargs', {})
-                # freq_expert_config = adapt_kwargs_global.get('freq_expert_kwargs', {})
-                # adapter_config = adapt_kwargs_global.get('adapter_kwargs', {})
                 router_config = adapt_kwargs_global.get('router_kwargs', {})
                 gate_noise = adapt_kwargs_global.get('gate_noise_factor', 1.0)
                 aux_loss_coeff = adapt_kwargs_global.get('aux_loss_coeff', 0.01)
@@ -252,9 +249,9 @@ class Mlp(nn.Module):
                     adapted_output = adapted_output.reshape(B, N, C)
                 else:
                     # 方案1：并联
-                    adapted_output = self.adapter_instance(x)
+                    # adapted_output = self.adapter_instance(x)
                     # 方案2：我的串联方式
-                    # adapted_output = self.adapter_instance(main_path)
+                    adapted_output = self.adapter_instance(main_path)
                     # 方案3：先残差，再并联（上层代码实现) mona的串联方式
 
         main_path = main_path + adapted_output # 更新 main_path

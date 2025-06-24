@@ -11,7 +11,7 @@ adapt_kwargs:
   # 路由器参数
   router_kwargs:
     proj_dim: 128 # 内部投影维度
-    k: 2          # 选择 top-k 专家 2 4 5 8
+    k: -1          # 选择 top-k 专家 2 4 5 8
     init_t: 0.5   # 温度初始化参数
 
   # 动态专家配置，替代之前的单独专家配置

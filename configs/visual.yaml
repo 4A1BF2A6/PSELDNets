@@ -30,9 +30,6 @@ mode: valid
 # 数据加载的工作进程数
 num_workers: 8
 
-# SED阈值
-sed_threshold: 0.5
-
 # 检查点路径（可通过命令行覆盖）
 ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_075.ckpt # null
 
@@ -41,9 +38,6 @@ seed: 2025
 
 # 是否使用PyTorch 2.0的模型编译功能
 compile: false
-
-# 后处理配置
-post_processing: null
 
 # 可视化相关参数
 visual:

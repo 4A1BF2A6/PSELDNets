@@ -434,7 +434,7 @@ class SEAdapter(nn.Module):
         '''
 
         # 应用层归一化
-        # x_norm = self.norm(x)
+        x = self.norm(x)
 
         x = self.down(x)
         x = self.act(x)
@@ -999,6 +999,7 @@ class MonaAdapter(nn.Module):
 
         hw_shapes = (int(math.sqrt(N)), int(math.sqrt(N)))
         
+        # 归一化分支
         x = self.norm(x) * self.gamma + x * self.gammax
 
         project1 = self.project1(x)
@@ -1013,7 +1014,18 @@ class MonaAdapter(nn.Module):
         nonlinear = self.dropout(nonlinear)
         project2 = self.project2(nonlinear)
 
-        return (identity + project2) * self.scale
+        # return (identity + project2) * self.scale
+        
+        '''
+            修改归一化方式
+        '''
+        # 限幅
+        project2 = torch.tanh(project2)
+        # 残差融合
+        output = (identity + project2) * self.scale
+        # 再归一化
+        output = self.norm(output)
+        return output
 
 
 if __name__ == '__main__':
