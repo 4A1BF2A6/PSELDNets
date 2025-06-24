@@ -434,7 +434,7 @@ class SEAdapter(nn.Module):
         '''
 
         # 应用层归一化
-        x = self.norm(x)
+        # x = self.norm(x)
 
         x = self.down(x)
         x = self.act(x)
@@ -1019,7 +1019,7 @@ class MonaAdapter(nn.Module):
         '''
             修改归一化方式
         '''
-        
+
         # 限幅
         project2 = torch.tanh(project2)
         # 残差融合
