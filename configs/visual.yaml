@@ -31,7 +31,8 @@ mode: valid
 num_workers: 8
 
 # 检查点路径（可通过命令行覆盖）
-ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_078_se_mona_revise.ckpt # null epoch_075_raw.ckpt
+# ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_078_se_mona_revise.ckpt # null epoch_075_raw.ckpt
+ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/AdapterFusion/epoch_039.ckpt
 
 # 随机种子
 seed: 2025
@@ -41,7 +42,7 @@ compile: false
 
 # 可视化相关参数
 visual:
-  max_batches: 38         # 提取特征时最多处理多少个batch
+  max_batches: 18         # 提取特征时最多处理多少个batch 38
   tsne_perplexity: 30     # t-SNE的perplexity参数
   save_features: true     # 是否保存特征
   save_tsne: true         # 是否保存t-SNE图

@@ -423,7 +423,7 @@ def main(cfg: DictConfig):
     visualizer.visualize_tsne(
         features_dict, 
         save_path=all_save_path / tsne_save_path,
-        title="t-SNE Visualization of Different Adapters and Ground Truth"
+        title="t-SNE Visualization of Different Adapters"
     )
     
     # 统计信息可视化
