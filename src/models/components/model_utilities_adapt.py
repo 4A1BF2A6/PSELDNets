@@ -1019,6 +1019,7 @@ class MonaAdapter(nn.Module):
         '''
             修改归一化方式
         '''
+        
         # 限幅
         project2 = torch.tanh(project2)
         # 残差融合
