@@ -13,12 +13,10 @@
             // "args": "${command:pickArgs}"
             // "args": ["experiment=starss23/finetune_maccdoa"],
             // "args": ["dataset=official2024", "wav_format=.wav"],
-            // "args": [
-            //     "--config-path", "../configs/experiment/starss23",
-            //     "--config-name", "finetune_maccdoa_MixAdapter.yaml",
-            //     "ckpt_path=visual/MixAdapter/epoch_003.ckpt",
-            //     "mode=valid"
-            // ],
+            "args": [
+                "experiment=starss23_maccdoa",
+                "ckpt_path=/workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_075.ckpt"
+            ],
             "env": {
                 "CUDA_VISIBLE_DEVICES": "0"
             }

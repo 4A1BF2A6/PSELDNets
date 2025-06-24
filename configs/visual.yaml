@@ -6,17 +6,18 @@ defaults:
   - logger: tensorboard.yaml
   - paths: default.yaml
   - augment: default.yaml
-  - data: starss23/official.yaml
+  - data: default.yaml
   - model: htsat.yaml
   - loss: accdoa.yaml
   - extras: default.yaml
   - callbacks: default.yaml
   - trainer: default.yaml
   - task: seld.yaml
-  # - adapt: default.yaml
-  - adapt: mixture_existing_adapter.yaml
+  - adapt: default.yaml
   - _self_
-  - experiment: null
+  
+  # 实验配置
+  - experiment: starss23_maccdoa # null
   - debug: null
 
 # 任务名称
@@ -33,7 +34,7 @@ num_workers: 8
 sed_threshold: 0.5
 
 # 检查点路径（可通过命令行覆盖）
-ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_003.ckpt
+ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_075.ckpt # null
 
 # 随机种子
 seed: 2025

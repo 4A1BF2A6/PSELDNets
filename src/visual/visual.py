@@ -27,9 +27,9 @@ sys.path.insert(0, str(src_dir))
 from utils.config import get_dataset
 from utils.utilities import extras, get_pylogger
 
-# 设置中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
-plt.rcParams['axes.unicode_minus'] = False
+# 使用默认英文字体，避免中文字体兼容性问题
+# plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
+# plt.rcParams['axes.unicode_minus'] = False
 
 log = get_pylogger(__name__)
 
@@ -55,7 +55,7 @@ class AdapterFeatureVisualizer:
         
     def _get_expert_names(self):
         """从配置中获取专家名称"""
-        experts_config = self.cfg.adapt_kwargs.get('experts_config', [])
+        experts_config = self.cfg.adapt.adapt_kwargs.get('experts_config', [])
         names = []
         for expert in experts_config:
             names.append(expert.get('name', f'expert_{len(names)}'))
@@ -78,12 +78,33 @@ class AdapterFeatureVisualizer:
         features_dict = {name: [] for name in self.expert_names}
         labels = []
         
-        # 获取数据加载器
-        if hasattr(self.datamodule, 'val_dataloader'):
-            dataloader = self.datamodule.val_dataloader()
-        else:
-            # 如果没有验证集，使用测试集
-            dataloader = self.datamodule.test_dataloader()
+        # 获取数据加载器，避免使用trainer
+        try:
+            if hasattr(self.datamodule, 'val_set'):
+                # 直接创建数据加载器，避免使用trainer
+                from torch.utils.data import DataLoader
+                dataloader = DataLoader(
+                    dataset=self.datamodule.val_set,
+                    batch_size=self.cfg.model.batch_size,
+                    shuffle=False,
+                    num_workers=self.cfg.num_workers,
+                    pin_memory=True
+                )
+            elif hasattr(self.datamodule, 'test_set'):
+                # 如果没有验证集，使用测试集
+                from torch.utils.data import DataLoader
+                dataloader = DataLoader(
+                    dataset=self.datamodule.test_set,
+                    batch_size=self.cfg.model.batch_size,
+                    shuffle=False,
+                    num_workers=self.cfg.num_workers,
+                    pin_memory=True
+                )
+            else:
+                raise AttributeError("无法找到可用的数据集")
+        except Exception as e:
+            log.error(f"创建数据加载器失败: {e}")
+            return features_dict, labels
         
         # 注册钩子函数来收集特征
         hooks = []
@@ -174,7 +195,7 @@ class AdapterFeatureVisualizer:
         log.info("特征提取完成")
         return features_dict, labels
     
-    def visualize_tsne(self, features_dict, save_path=None, title='不同Adapter的t-SNE可视化', perplexity=30):
+    def visualize_tsne(self, features_dict, save_path=None, title='t-SNE Visualization of Different Adapters', perplexity=30):
         """
         使用t-SNE进行特征可视化
         
@@ -228,8 +249,8 @@ class AdapterFeatureVisualizer:
         
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         plt.title(title, fontsize=14)
-        plt.xlabel('t-SNE维度1', fontsize=12)
-        plt.ylabel('t-SNE维度2', fontsize=12)
+        plt.xlabel('t-SNE Dimension 1', fontsize=12)
+        plt.ylabel('t-SNE Dimension 2', fontsize=12)
         plt.tight_layout()
         
         if save_path:
@@ -252,10 +273,10 @@ class AdapterFeatureVisualizer:
         for expert_name, features in features_dict.items():
             if len(features) > 0:
                 stats[expert_name] = {
-                    '均值': np.mean(features),
-                    '标准差': np.std(features),
-                    '最大值': np.max(features),
-                    '最小值': np.min(features)
+                    'Mean': np.mean(features),
+                    'Std': np.std(features),
+                    'Max': np.max(features),
+                    'Min': np.min(features)
                 }
         
         if not stats:
@@ -266,14 +287,14 @@ class AdapterFeatureVisualizer:
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         axes = axes.flatten()
         
-        stat_names = ['均值', '标准差', '最大值', '最小值']
+        stat_names = ['Mean', 'Std', 'Max', 'Min']
         
         for i, stat_name in enumerate(stat_names):
             expert_names = list(stats.keys())
             values = [stats[name][stat_name] for name in expert_names]
             
             axes[i].bar(expert_names, values, alpha=0.7)
-            axes[i].set_title(f'特征{stat_name}对比', fontsize=12)
+            axes[i].set_title(f'Feature {stat_name} Comparison', fontsize=12)
             axes[i].set_ylabel(stat_name, fontsize=10)
             axes[i].tick_params(axis='x', rotation=45)
         
@@ -336,6 +357,10 @@ def main(cfg: DictConfig):
         # 实例化模型
         log.info(f"正在实例化模型 <{cfg.modelmodule._target_}> ...")
         model = hydra.utils.instantiate(cfg.modelmodule, cfg, dataset, valid_meta)
+        
+        # 设置模型（初始化网络）
+        log.info("正在设置模型...")
+        model.setup('valid')
 
     elif cfg.mode == 'test':
         # 测试模式
@@ -353,6 +378,10 @@ def main(cfg: DictConfig):
         # 实例化模型
         log.info(f"正在实例化模型 <{cfg.modelmodule._target_}> ...")
         model = hydra.utils.instantiate(cfg.modelmodule, cfg, dataset, test_meta=test_meta)
+        
+        # 设置模型（初始化网络）
+        log.info("正在设置模型...")
+        model.setup('test')
 
     # 加载模型权重
     if cfg.get("ckpt_path"):
@@ -379,22 +408,24 @@ def main(cfg: DictConfig):
     features_dict, labels = visualizer.extract_features_from_adapters(max_batches=max_batches)
     
     # 保存特征
+    all_save_path = Path(cfg.paths.output_dir)
+
     features_save_path = "adapter_features.pkl"
-    visualizer.save_features(features_dict, features_save_path)
+    visualizer.save_features(features_dict, all_save_path / features_save_path)
     
     # t-SNE可视化
     tsne_save_path = "adapter_tsne_visualization.png"
     visualizer.visualize_tsne(
         features_dict, 
-        save_path=tsne_save_path,
-        title="混合Adapter特征t-SNE可视化"
+        save_path=all_save_path / tsne_save_path,
+        title="t-SNE Visualization of Different Adapters"
     )
     
     # 统计信息可视化
     stats_save_path = "adapter_statistics.png"
     visualizer.visualize_feature_statistics(
         features_dict,
-        save_path=stats_save_path
+        save_path=all_save_path / stats_save_path
     )
     
     log.info("可视化完成！")
