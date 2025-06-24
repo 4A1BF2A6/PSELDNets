@@ -199,9 +199,9 @@ class Mlp(nn.Module):
                 # mixture_specific_kwargs 应从 adapt_kwargs_global 中提取
                 # 提取专家配置
                 experts_config = adapt_kwargs_global.get('experts_config', None)
-                dct_expert_config = adapt_kwargs_global.get('dct_expert_kwargs', {})
-                freq_expert_config = adapt_kwargs_global.get('freq_expert_kwargs', {})
-                adapter_config = adapt_kwargs_global.get('adapter_kwargs', {})
+                # dct_expert_config = adapt_kwargs_global.get('dct_expert_kwargs', {})
+                # freq_expert_config = adapt_kwargs_global.get('freq_expert_kwargs', {})
+                # adapter_config = adapt_kwargs_global.get('adapter_kwargs', {})
                 router_config = adapt_kwargs_global.get('router_kwargs', {})
                 gate_noise = adapt_kwargs_global.get('gate_noise_factor', 1.0)
                 aux_loss_coeff = adapt_kwargs_global.get('aux_loss_coeff', 0.01)
@@ -209,13 +209,14 @@ class Mlp(nn.Module):
                 self.adapter_instance = MixtureOfExistingAdapters(
                     in_features,
                     experts_config=experts_config,
-                    dct_adapter_kwargs=dct_expert_config,
-                    freq_adapter_kwargs=freq_expert_config,
-                    adapter_kwargs=adapter_config,
                     router_kwargs=router_config,
                     gate_noise_factor=gate_noise,
                     aux_loss_coeff=aux_loss_coeff
                 )
+            elif self.current_adapter_type == 'adapter_mona':
+                from .model_utilities_adapt import MonaAdapter
+                print('启用的是MonaAdapter适配器 for MLP')
+                self.adapter_instance = MonaAdapter(in_features, **adapt_kwargs_global)
             else:
                 print('MLP中没有启用任何特定类型的适配器或类型未知')
         else:
@@ -234,9 +235,6 @@ class Mlp(nn.Module):
         main_path = self.act(main_path)
         main_path = self.drop(main_path)
         main_path = self.fc2(main_path)
-        
-        
-        current_aux_loss = torch.tensor(0.0, device=x.device) # 初始化本层的辅助损失
 
         if self.adapter_instance is not None:
             if isinstance(self.adapter_instance, MixtureOfExistingAdapters):
@@ -253,8 +251,12 @@ class Mlp(nn.Module):
                     adapted_output = self.adapter_instance(x) # 适配器作用于 x
                     adapted_output = adapted_output.reshape(B, N, C)
                 else:
+                    # 方案1：并联
                     adapted_output = self.adapter_instance(x)
-               
+                    # 方案2：我的串联方式
+                    # adapted_output = self.adapter_instance(main_path)
+                    # 方案3：先残差，再并联（上层代码实现) mona的串联方式
+
         main_path = main_path + adapted_output # 更新 main_path
         main_path = self.drop(main_path) # 在原始的 HTSAT Swin MLP 中，最后的drop在适配器之后   
          

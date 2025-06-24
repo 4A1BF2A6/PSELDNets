@@ -11,8 +11,14 @@
             "program": "${file}",
             "console": "integratedTerminal",
             // "args": "${command:pickArgs}"
-            "args": ["experiment=starss23/finetune_maccdoa"],
+            // "args": ["experiment=starss23/finetune_maccdoa"],
             // "args": ["dataset=official2024", "wav_format=.wav"],
+            // "args": [
+            //     "--config-path", "../configs/experiment/starss23",
+            //     "--config-name", "finetune_maccdoa_MixAdapter.yaml",
+            //     "ckpt_path=visual/MixAdapter/epoch_003.ckpt",
+            //     "mode=valid"
+            // ],
             "env": {
                 "CUDA_VISIBLE_DEVICES": "0"
             }

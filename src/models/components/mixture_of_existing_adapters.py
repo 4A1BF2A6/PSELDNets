@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from einops import rearrange
 
 from .moa_utils import CosineTopKGate, load_importance_loss
-from .model_utilities_adapt import Adapter, ConvAdapterDesign1, DCTAdapter, DCTFrequencyAdapter, SEAdapter
+from .model_utilities_adapt import Adapter, ConvAdapterDesign1, DCTAdapter, DCTFrequencyAdapter, MonaAdapter, SEAdapter
 
 class MixtureOfExistingAdapters(nn.Module):
     """
@@ -23,6 +23,7 @@ class MixtureOfExistingAdapters(nn.Module):
                  gate_noise_factor=1.0, 
                  aux_loss_coeff=0.01,
                  **kwargs):
+        
         super().__init__()
         self.in_features = in_features
         self.gate_noise_factor = gate_noise_factor
@@ -48,23 +49,7 @@ class MixtureOfExistingAdapters(nn.Module):
                 self.experts.append(expert)
                 self.expert_names.append(expert_name)
                 print(f"添加专家 {expert_name} (类型: {expert_type})")
-        else:
-            # 为了向后兼容，如果没有提供专家配置，则使用旧方式创建专家
-            if dct_adapter_kwargs:
-                self.experts.append(DCTAdapter(in_features=in_features, **(dct_adapter_kwargs or {})))
-                self.expert_names.append('dct_expert')
-                print("添加 DCT 专家")
-            
-            if freq_adapter_kwargs:
-                self.experts.append(DCTFrequencyAdapter(in_features=in_features, **(freq_adapter_kwargs or {})))
-                self.expert_names.append('freq_expert')
-                print("添加 Frequency 专家")
-                
-            if adapter_kwargs:
-                self.experts.append(Adapter(in_features=in_features, **(adapter_kwargs or {})))
-                self.expert_names.append('adapter_expert')
-                print("添加普通 Adapter 专家")
-            # 这里程序逻辑写的还不够健壮，待后续更改
+
         
         # 确保至少有一个专家
         if not self.experts:
@@ -107,27 +92,10 @@ class MixtureOfExistingAdapters(nn.Module):
             return SEAdapter(in_features=in_features, **kwargs)
         elif expert_type == 'conv_adapter':
             return ConvAdapterDesign1(in_features=in_features, **kwargs)
+        elif expert_type == 'mona_adapter':
+            return MonaAdapter(in_dim=in_features, **kwargs)
         else:
             raise ValueError(f"不支持的专家类型: {expert_type}")
-
-    def visualRouteWeights(self, routing_weights):
-        # 假设 routing_weights 是一个 torch.Tensor，形状为 (B, S, num_experts)
-        # 转换为 NumPy 格式
-        routing_weights_np = routing_weights.detach().cpu().numpy()  # (B, S, num_experts)
-
-        # reshape 为 (B * S, num_experts) 作为样本数 × 特征数输入 T-SNE
-        num_samples = routing_weights_np.shape[0] * routing_weights_np.shape[1]
-        X = routing_weights_np.reshape(num_samples, -1)
-        tsne = TSNE(n_components=2, perplexity=30, random_state=42)
-        X_embedded = tsne.fit_transform(X)
-        plt.figure(figsize=(8, 6))
-        plt.scatter(X_embedded[:, 0], X_embedded[:, 1], s=5, alpha=0.7)
-        plt.title('T-SNE of Routing Weights')
-        plt.xlabel('Dim 1')
-        plt.ylabel('Dim 2')
-        plt.grid(True)
-        plt.savefig('routing_weights_tsne.png', dpi=300, bbox_inches='tight')
-        print('picture save sucessfully!')
 
     def forward(self, x, residual_input=None):
         """
@@ -174,19 +142,10 @@ class MixtureOfExistingAdapters(nn.Module):
         else:
             # 使用所有专家的softmax权重
             routing_weights = F.softmax(router_logits, dim=1)
+            topk_logits, topk_indices = torch.topk(router_logits, k=self.num_experts, dim=1)
         
         # 重新整形路由权重
         effective_routing_weights = rearrange(routing_weights, '(b s) e -> b s e', b=batch_size) # [B, S, num_experts]
-        
-        # # 可视化路由权重
-        # # 每隔5秒进行一次可视化路由权重调用
-        # current_time = time.time()
-        # if not hasattr(self, 'last_visualization_time'):
-        #     self.last_visualization_time = current_time
-        #     self.visualRouteWeights(effective_routing_weights)
-        # elif current_time - self.last_visualization_time >= 5:
-        #     self.last_visualization_time = current_time
-        #     self.visualRouteWeights(effective_routing_weights)
 
         # 3. 应用专家并收集输出
         expert_outputs = []
@@ -217,31 +176,5 @@ class MixtureOfExistingAdapters(nn.Module):
         # self.aux_loss
         return weighted_output
 
-
-def visualRouteWeights(routing_weights):
-    # 假设 routing_weights 是一个 torch.Tensor，形状为 (B, S, num_experts)
-    # 转换为 NumPy 格式
-    routing_weights_np = routing_weights.detach().cpu().numpy()  # (B, S, num_experts)
-
-    # reshape 为 (B * S, num_experts) 作为样本数 × 特征数输入 T-SNE
-    num_samples = routing_weights_np.shape[0] * routing_weights_np.shape[1]
-    X = routing_weights_np.reshape(num_samples, -1)
-    tsne = TSNE(n_components=2, perplexity=30, random_state=42)
-    X_embedded = tsne.fit_transform(X)
-    plt.figure(figsize=(8, 6))
-    plt.scatter(X_embedded[:, 0], X_embedded[:, 1], s=5, alpha=0.7)
-    plt.title('T-SNE of Routing Weights')
-    plt.xlabel('Dim 1')
-    plt.ylabel('Dim 2')
-    plt.grid(True)
-    plt.savefig('./routing_weights_tsne.png', dpi=300, bbox_inches='tight')
-    print('picture save sucessfully!')
-    plt.close() # 必须要关闭
-
-# if __name__ == "__main__":
-#     # 创建模拟的路由权重
-#     batch_size = 32
-#     seq_len = 50
-#     num_experts = 4
-#     routing_weights = torch.randn(batch_size, seq_len, num_experts)
-#     routing_weights = visualRouteWeights(routing_weights)
+if __name__ == "__main__":
+    x = 1

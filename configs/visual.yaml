@@ -1,0 +1,53 @@
+# configs/visual.yaml
+
+# 指定默认配置
+defaults:
+  - hydra: default.yaml
+  - logger: tensorboard.yaml
+  - paths: default.yaml
+  - augment: default.yaml
+  - data: starss23/official.yaml
+  - model: htsat.yaml
+  - loss: accdoa.yaml
+  - extras: default.yaml
+  - callbacks: default.yaml
+  - trainer: default.yaml
+  - task: seld.yaml
+  # - adapt: default.yaml
+  - adapt: mixture_existing_adapter.yaml
+  - _self_
+  - experiment: null
+  - debug: null
+
+# 任务名称
+task_name: ${model.method}_${model.backbone}_visual
+experiment_name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
+
+# 可视化模式：valid(验证) | test(测试)
+mode: valid
+
+# 数据加载的工作进程数
+num_workers: 8
+
+# SED阈值
+sed_threshold: 0.5
+
+# 检查点路径（可通过命令行覆盖）
+ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_003.ckpt
+
+# 随机种子
+seed: 2025
+
+# 是否使用PyTorch 2.0的模型编译功能
+compile: false
+
+# 后处理配置
+post_processing: null
+
+# 可视化相关参数
+visual:
+  max_batches: 10         # 提取特征时最多处理多少个batch
+  tsne_perplexity: 30     # t-SNE的perplexity参数
+  save_features: true     # 是否保存特征
+  save_tsne: true         # 是否保存t-SNE图
+  save_stats: true        # 是否保存统计图

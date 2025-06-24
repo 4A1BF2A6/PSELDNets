@@ -192,6 +192,13 @@ class WindowAttention(nn.Module):
                     gate_noise_factor=gate_noise,
                     aux_loss_coeff=aux_loss_coeff
                 )
+            elif self.adapter_type == 'adapter_mona':
+                print("启用的是 MonaAdapter for WindowAttention")
+                from models.components.model_utilities_adapt import MonaAdapter
+                self.adapter_instance = MonaAdapter(
+                    in_dim=dim,
+                    **adapt_kwargs_global
+                )
             else:
                 print("没有匹配的适配器类型或 'SpatialAdapter' 不在位置列表中。")
                
@@ -372,6 +379,14 @@ class SwinTransformerBlock(nn.Module):
                 in_features=dim,
                 **self.adapt_kwargs_global
             )
+
+        # from .model_utilities_adapt import MonaAdapter
+        # print('启用的是MonaAdapter适配器 for MLP')
+        # self.adapter_instance = MonaAdapter(dim, **self.adapt_kwargs_global)
+
+        # from .mixture_of_existing_adapters import MixtureOfExistingAdapters
+        # print('启用的是MixAdapter适配器 for MLP')
+        # self.adapter_instance = MixtureOfExistingAdapters(dim, **self.adapt_kwargs_global)
         print('===================SwinTransformerBlock========================')
 
     def forward(self, x):
@@ -392,6 +407,7 @@ class SwinTransformerBlock(nn.Module):
         '''
         x_conv = shortcut.view(B, H, W, C).permute(0, 3, 1, 2)
         x_linear = shortcut
+
         # 如果配置了使用ConvAdapterDesign1
         if self.adapter_type == 'conv_adapter' and 'before_msa' in self.adapter_position:
             if self.adapter is not None:
@@ -431,6 +447,10 @@ class SwinTransformerBlock(nn.Module):
         # FFN
         x = shortcut + self.drop_path(x)
         x = x + self.drop_path(self.mlp(self.norm2(x)))
+
+        # 添加xxx Adapter
+        # x = self.adapter_instance(x)
+
 
         return x, attn_matrix
 

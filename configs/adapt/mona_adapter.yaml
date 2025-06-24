@@ -1,0 +1,9 @@
+method: adapter_mona
+
+# Adapter of ACCDOA or mACCDOA
+adapt_kwargs:
+  position: [] # MlpAdapter or SpatialAdapter
+  type: adapter_mona # adapter
+  mlp_ratio: 0.5
+  # adapter_scalar: 0.1 # learnable_scalar
+  # act_layer: 'gelu'

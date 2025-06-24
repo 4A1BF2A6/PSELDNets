@@ -934,6 +934,87 @@ class WConvAdapter(nn.Module):
         
 #         return out
 
+'''
+    Mona适配器模块
+'''
+
+class MonaOp(nn.Module):
+    def __init__(self, in_features):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_features, in_features, kernel_size=3, padding=3 // 2, groups=in_features)
+        self.conv2 = nn.Conv2d(in_features, in_features, kernel_size=5, padding=5 // 2, groups=in_features)
+        self.conv3 = nn.Conv2d(in_features, in_features, kernel_size=7, padding=7 // 2, groups=in_features)
+
+        self.projector = nn.Conv2d(in_features, in_features, kernel_size=1, )
+
+    def forward(self, x):
+        identity = x
+        conv1_x = self.conv1(x)
+        conv2_x = self.conv2(x)
+        conv3_x = self.conv3(x)
+
+        x = (conv1_x + conv2_x + conv3_x) / 3.0 + identity
+
+        identity = x
+
+        x = self.projector(x)
+
+        return identity + x
+
+class MonaAdapter(nn.Module):
+    def __init__(self,
+                 in_dim,
+                 adapter_scalar=1,
+                 mlp_ratio=0.5,
+                 **kwargs):
+        super().__init__()
+        # 计算隐藏层维度参数，等会在调整
+        hidden_features = int(in_dim * mlp_ratio)
+
+        self.project1 = nn.Linear(in_dim, hidden_features)
+        self.nonlinear = F.gelu
+        self.project2 = nn.Linear(hidden_features, in_dim)
+
+        self.dropout = nn.Dropout(p=0.1)
+
+        self.adapter_conv = MonaOp(hidden_features)
+
+        self.norm = nn.LayerNorm(in_dim)
+        self.gamma = nn.Parameter(torch.ones(in_dim) * 1e-6)
+        self.gammax = nn.Parameter(torch.ones(in_dim))
+
+        # 配置缩放因子
+        if adapter_scalar == 'learnable_scalar':
+            self.scale = nn.Parameter(torch.ones(1))
+        else:
+            self.scale = adapter_scalar
+
+    def forward(self, x, hw_shapes=None):
+        '''
+        输入：[B, N, C]
+        输出：[B, N, C]
+        '''
+        identity = x
+        B, N, C = x.shape
+
+        hw_shapes = (int(math.sqrt(N)), int(math.sqrt(N)))
+        
+        x = self.norm(x) * self.gamma + x * self.gammax
+
+        project1 = self.project1(x)
+
+        b, n, c = project1.shape
+        h, w = hw_shapes
+        project1 = project1.reshape(b, h, w, c).permute(0, 3, 1, 2)
+        project1 = self.adapter_conv(project1)
+        project1 = project1.permute(0, 2, 3, 1).reshape(b, n, c)
+
+        nonlinear = self.nonlinear(project1)
+        nonlinear = self.dropout(nonlinear)
+        project2 = self.project2(nonlinear)
+
+        return (identity + project2) * self.scale
+
 
 if __name__ == '__main__':
     # 测试代码
@@ -941,18 +1022,20 @@ if __name__ == '__main__':
     # print(adapter.conv1.weight.shape)  # 打印深度卷积权重形状
     # print(adapter.conv2.weight.shape)  # 打印点卷积权重形状
 
-    adapter = WConvAdapter(
-        in_features=96,   # 输入通道数
-        kernel_size=7,
-        padding=3,
-        stride=1,
-        width=32,      # 中间层通道数
-        mlp_ratio=0.5, # 中间层通道数与输入通道数的比例
-        groups=4,     # 分组卷积的组数
-        den = [0.7, 1.0, 0.7]  # 时间维度的权重设置
-    )
+    # adapter = WConvAdapter(
+    #     in_features=96,   # 输入通道数
+    #     kernel_size=7,
+    #     padding=3,
+    #     stride=1,
+    #     width=32,      # 中间层通道数
+    #     mlp_ratio=0.5, # 中间层通道数与输入通道数的比例
+    #     groups=4,     # 分组卷积的组数
+    #     den = [0.7, 1.0, 0.7]  # 时间维度的权重设置
+    # )
 
+    adapter = MonaAdapter(in_dim=96)
     # 测试输入
-    x = torch.randn(32, 96, 64, 64)  # [B, C, H, W] 形状的输入
-    out = adapter(x)  # 输出形状为 [B, C, H, W]
+    # x = torch.randn(32, 96, 64, 64)  # [B, C, H, W] 形状的输入
+    x = torch.randn(32, 4096, 96)  # [B, N, C] 形状的输入
+    out = adapter(x,(64, 64))  # 输出形状为 [B, C, H, W]
     print(out.shape)  # 应该输出 torch.Size([32, 96, 64, 64])
