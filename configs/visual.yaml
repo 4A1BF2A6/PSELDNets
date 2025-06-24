@@ -47,7 +47,7 @@ post_processing: null
 
 # 可视化相关参数
 visual:
-  max_batches: 10         # 提取特征时最多处理多少个batch
+  max_batches: 38         # 提取特征时最多处理多少个batch
   tsne_perplexity: 30     # t-SNE的perplexity参数
   save_features: true     # 是否保存特征
   save_tsne: true         # 是否保存t-SNE图

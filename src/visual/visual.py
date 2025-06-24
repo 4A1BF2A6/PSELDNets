@@ -110,6 +110,11 @@ class AdapterFeatureVisualizer:
         hooks = []
         collected_features = {}
         
+        '''
+            钩子函数
+            每当该专家的forward被调用时，就把输出特征append到 collected_features[expert_name] 里
+
+        '''
         def create_hook(expert_name):
             def hook_fn(module, input, output):
                 if expert_name not in collected_features:
@@ -195,12 +200,13 @@ class AdapterFeatureVisualizer:
         log.info("特征提取完成")
         return features_dict, labels
     
-    def visualize_tsne(self, features_dict, save_path=None, title='t-SNE Visualization of Different Adapters', perplexity=30):
+    def visualize_tsne(self, features_dict, labels=None, save_path=None, title='t-SNE Visualization of Different Adapters', perplexity=30):
         """
         使用t-SNE进行特征可视化
         
         Args:
             features_dict: 特征字典
+            labels: 标签列表
             save_path: 保存路径
             title: 图标题
             perplexity: t-SNE参数
@@ -209,17 +215,16 @@ class AdapterFeatureVisualizer:
         
         # 合并所有特征
         all_features = []
-        all_labels = []
-        
+        all_expert_labels = []
         for expert_name, features in features_dict.items():
             if len(features) > 0:
                 all_features.append(features)
-                all_labels.extend([expert_name] * len(features))
+                all_expert_labels.extend([expert_name] * len(features))
         
         if not all_features:
             log.error("没有找到有效的特征数据")
             return
-            
+        
         all_features = np.concatenate(all_features, axis=0)
         
         # 如果特征维度太高，先用PCA降维
@@ -238,16 +243,16 @@ class AdapterFeatureVisualizer:
         
         # 绘图
         plt.figure(figsize=(12, 8))
+        
+        # 按专家分组
         colors = plt.cm.Set3(np.linspace(0, 1, len(self.expert_names)))
-        
         for i, expert_name in enumerate(self.expert_names):
-            if expert_name in features_dict and len(features_dict[expert_name]) > 0:
-                mask = np.array(all_labels) == expert_name
-                if np.any(mask):
-                    plt.scatter(features_2d[mask, 0], features_2d[mask, 1], 
-                              c=[colors[i]], label=expert_name, alpha=0.6, s=50)
+            mask = np.array(all_expert_labels) == expert_name
+            if np.any(mask):
+                plt.scatter(features_2d[mask, 0], features_2d[mask, 1], 
+                            c=[colors[i]], label=expert_name, alpha=0.6, s=50)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', title="Expert")
         
-        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         plt.title(title, fontsize=14)
         plt.xlabel('t-SNE Dimension 1', fontsize=12)
         plt.ylabel('t-SNE Dimension 2', fontsize=12)
@@ -418,7 +423,7 @@ def main(cfg: DictConfig):
     visualizer.visualize_tsne(
         features_dict, 
         save_path=all_save_path / tsne_save_path,
-        title="t-SNE Visualization of Different Adapters"
+        title="t-SNE Visualization of Different Adapters and Ground Truth"
     )
     
     # 统计信息可视化
