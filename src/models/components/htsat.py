@@ -384,9 +384,9 @@ class SwinTransformerBlock(nn.Module):
         # print('启用的是MonaAdapter适配器 for MLP')
         # self.adapter_instance = MonaAdapter(dim, **self.adapt_kwargs_global)
 
-        # from .mixture_of_existing_adapters import MixtureOfExistingAdapters
-        # print('启用的是MixAdapter适配器 for MLP')
-        # self.adapter_instance = MixtureOfExistingAdapters(dim, **self.adapt_kwargs_global)
+        from .mixture_of_existing_adapters import MixtureOfExistingAdapters
+        print('启用的是MixAdapter适配器 for MLP')
+        self.adapter_instance = MixtureOfExistingAdapters(dim, **self.adapt_kwargs_global)
         print('===================SwinTransformerBlock========================')
 
     def forward(self, x):
@@ -449,7 +449,7 @@ class SwinTransformerBlock(nn.Module):
         x = x + self.drop_path(self.mlp(self.norm2(x)))
 
         # 添加xxx Adapter
-        # x = self.adapter_instance(x)
+        x = self.adapter_instance(x)
 
 
         return x, attn_matrix

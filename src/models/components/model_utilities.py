@@ -249,9 +249,9 @@ class Mlp(nn.Module):
                     adapted_output = adapted_output.reshape(B, N, C)
                 else:
                     # 方案1：并联
-                    adapted_output = self.adapter_instance(x)
+                    # adapted_output = self.adapter_instance(x)
                     # 方案2：我的串联方式
-                    # adapted_output = self.adapter_instance(main_path)
+                    adapted_output = self.adapter_instance(main_path)
                     # 方案3：先残差，再并联（上层代码实现) mona的串联方式
 
         main_path = main_path + adapted_output # 更新 main_path
