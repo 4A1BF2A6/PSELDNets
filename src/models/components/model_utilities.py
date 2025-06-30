@@ -195,21 +195,46 @@ class Mlp(nn.Module):
                 )
             elif self.current_adapter_type == 'mixture_existing': # 混合适配器
                 print('启用的是 混合适配器 for MLP')
+                # 检查是否是浅层深层适配器融合
+                adapter_method = ADAPT_CONFIG.get('method', '')
+                if adapter_method == 'shallow_deep_adapterfusion':
+                    print('启用的是 浅层深层适配器融合 for MLP')
+                    # 使用全局计数器来获取当前块索引
+                    from models.components.htsat import get_current_block_index, get_block_config
+                    current_block = get_current_block_index()
 
-                # mixture_specific_kwargs 应从 adapt_kwargs_global 中提取
-                # 提取专家配置
-                experts_config = adapt_kwargs_global.get('experts_config', None)
-                router_config = adapt_kwargs_global.get('router_kwargs', {})
-                gate_noise = adapt_kwargs_global.get('gate_noise_factor', 1.0)
-                aux_loss_coeff = adapt_kwargs_global.get('aux_loss_coeff', 0.01)
+                    # 根据block索引获取对应的配置
+                    block_config = get_block_config(current_block, adapt_kwargs_global)
 
-                self.adapter_instance = MixtureOfExistingAdapters(
-                    in_features,
-                    experts_config=experts_config,
-                    router_kwargs=router_config,
-                    gate_noise_factor=gate_noise,
-                    aux_loss_coeff=aux_loss_coeff
-                )
+                    if block_config:
+                        print(f'当前块索引: {current_block}, 配置: {block_config}')
+                        self.adapter_instance = MixtureOfExistingAdapters(
+                            in_features,
+                            experts_config=block_config.get('experts_config', None),
+                            router_kwargs=block_config.get('router_kwargs', {}),
+                            gate_noise_factor=block_config.get('gate_noise_factor', 1.0),
+                            aux_loss_coeff=block_config.get('aux_loss_coeff', 0.01)
+                        )
+                    else:
+                        print(f'当前块索引: {current_block}, 没有找到对应的配置')
+                        self.adapter_instance = None
+                else:
+                    print('启用的是 原有的混合适配器 for MLP')
+
+                    # mixture_specific_kwargs 应从 adapt_kwargs_global 中提取
+                    # 提取专家配置
+                    experts_config = adapt_kwargs_global.get('experts_config', None)
+                    router_config = adapt_kwargs_global.get('router_kwargs', {})
+                    gate_noise = adapt_kwargs_global.get('gate_noise_factor', 1.0)
+                    aux_loss_coeff = adapt_kwargs_global.get('aux_loss_coeff', 0.01)
+
+                    self.adapter_instance = MixtureOfExistingAdapters(
+                        in_features,
+                        experts_config=experts_config,
+                        router_kwargs=router_config,
+                        gate_noise_factor=gate_noise,
+                        aux_loss_coeff=aux_loss_coeff
+                    )
             elif self.current_adapter_type == 'adapter_mona':
                 from .model_utilities_adapt import MonaAdapter
                 print('启用的是MonaAdapter适配器 for MLP')

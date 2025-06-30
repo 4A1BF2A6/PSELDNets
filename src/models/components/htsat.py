@@ -26,6 +26,66 @@ ADAPT_CONFIG = {}
 # 添加全局变量来跟踪MOE专家模块的初始化次数
 MOE_EXPERT_INIT_COUNT = 0
 
+def reset_moe_expert_init_count():
+    '''
+    重置MOE专家模块的初始化次数
+    '''
+    global MOE_EXPERT_INIT_COUNT
+    MOE_EXPERT_INIT_COUNT = 0
+    print(f"MOE专家模块初始化次数已重置为: {MOE_EXPERT_INIT_COUNT}")
+
+def get_current_block_index():
+    '''
+    获取当前块索引, 并递增计数器
+    '''
+    global MOE_EXPERT_INIT_COUNT
+    current_count = MOE_EXPERT_INIT_COUNT
+    MOE_EXPERT_INIT_COUNT += 1
+    print(f"当前块索引: {current_count}, 计数器递增为: {MOE_EXPERT_INIT_COUNT}")
+
+    return current_count
+    
+def get_block_config(block_index, adapt_kwargs_global):
+    """
+    根据block索引为shallow_deep_adapterfusion方法选择对应的专家配置
+    
+    Args:
+        block_index (int): 当前block的索引 (0-11)
+        adapt_kwargs_global (dict): 全局适配器配置
+    
+    Returns:
+        dict: 对应block的专家配置
+    """
+    experts_config_list = adapt_kwargs_global.get('experts_config', [])
+    
+    for config in experts_config_list:
+        # 检查浅层配置 (shallow_block_range)
+        if 'shallow_block_range' in config:
+            range_start, range_end = config['shallow_block_range']
+            if range_start <= block_index <= range_end:
+                print(f"Block {block_index}: 匹配浅层内容感知配置 [{range_start}, {range_end}]")
+                return {
+                    'experts_config': config.get('experts', []),
+                    'router_kwargs': config.get('router_kwargs', {}),
+                    'gate_noise_factor': adapt_kwargs_global.get('gate_noise_factor', 1.0),
+                    'aux_loss_coeff': adapt_kwargs_global.get('aux_loss_coeff', 0.01)
+                }
+        
+        # 检查深层配置 (deep_block_range)  
+        if 'deep_block_range' in config:
+            range_start, range_end = config['deep_block_range']
+            if range_start <= block_index <= range_end:
+                print(f"Block {block_index}: 匹配深层环境感知配置 [{range_start}, {range_end}]")
+                return {
+                    'experts_config': config.get('experts', []),
+                    'router_kwargs': config.get('router_kwargs', {}),
+                    'gate_noise_factor': adapt_kwargs_global.get('gate_noise_factor', 1.0),
+                    'aux_loss_coeff': adapt_kwargs_global.get('aux_loss_coeff', 0.01)
+                }
+    
+    print(f"Block {block_index}: 没有找到匹配的配置")
+    return None
+
 def window_partition(x, window_size):
     """
     Args:
@@ -173,28 +233,52 @@ class WindowAttention(nn.Module):
                     **adapt_kwargs_global
                 )
             elif self.adapter_type == 'mixture_existing':
-                print("启用的是 混合适配器 for WindowAttention")
-                from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
-                # 获取各种配置参数
-                experts_config = adapt_kwargs_global.get('experts_config', None)
-                dct_expert_config = adapt_kwargs_global.get('dct_expert_kwargs', {})
-                freq_expert_config = adapt_kwargs_global.get('freq_expert_kwargs', {})
-                adapter_config = adapt_kwargs_global.get('adapter_kwargs',{})
-                router_config = adapt_kwargs_global.get('router_kwargs', {})
-                gate_noise = adapt_kwargs_global.get('gate_noise_factor', 1.0)
-                aux_loss_coeff = adapt_kwargs_global.get('aux_loss_coeff', 0.01)
+                print('启用的是 混合适配器 for WindowAttention')
 
-                # 初始化混合适配器
-                self.adapter_instance = MixtureOfExistingAdapters(
-                    dim,
-                    experts_config=experts_config,
-                    dct_adapter_kwargs=dct_expert_config,
-                    freq_adapter_kwargs=freq_expert_config,
-                    adapter_kwargs=adapter_config,
-                    router_kwargs=router_config,
-                    gate_noise_factor=gate_noise,
-                    aux_loss_coeff=aux_loss_coeff
-                )
+                # 检查是否是浅层深层适配器融合
+                adapter_method = ADAPT_CONFIG.get('method', '')
+                if adapter_method == 'shallow_deep_adapterfusion':
+                    print('启用的是浅层深层适配器融合 for WindowAttention')
+                    # 使用全局计数器来获取当前块索引
+                    current_block = get_current_block_index()
+                    # 根据block索引获取对应的配置
+                    block_config = get_block_config(current_block, adapt_kwargs_global)
+
+                    if block_config:
+                        print(f'当前块索引: {current_block}, 配置: {block_config}')
+                        self.adapter_instance = MixtureOfExistingAdapters(
+                            in_features=dim,
+                            experts_config=block_config.get('experts_config', None),
+                            router_kwargs=block_config.get('router_kwargs', {}),
+                            gate_noise_factor=block_config.get('gate_noise_factor', 1.0),
+                            aux_loss_coeff=block_config.get('aux_loss_coeff', 0.01)
+                        )
+                    else:
+                        print(f'当前块索引: {current_block}, 没有找到对应的配置')
+                        self.adapter_instance = None
+                else:
+                    print('启用的是 原有的混合适配器 for WindowAttention')
+                    from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
+                    # 获取各种配置参数
+                    experts_config = adapt_kwargs_global.get('experts_config', None)
+                    dct_expert_config = adapt_kwargs_global.get('dct_expert_kwargs', {})
+                    freq_expert_config = adapt_kwargs_global.get('freq_expert_kwargs', {})
+                    adapter_config = adapt_kwargs_global.get('adapter_kwargs',{})
+                    router_config = adapt_kwargs_global.get('router_kwargs', {})
+                    gate_noise = adapt_kwargs_global.get('gate_noise_factor', 1.0)
+                    aux_loss_coeff = adapt_kwargs_global.get('aux_loss_coeff', 0.01)
+
+                    # 初始化混合适配器
+                    self.adapter_instance = MixtureOfExistingAdapters(
+                        dim,
+                        experts_config=experts_config,
+                        dct_adapter_kwargs=dct_expert_config,
+                        freq_adapter_kwargs=freq_expert_config,
+                        adapter_kwargs=adapter_config,
+                        router_kwargs=router_config,
+                        gate_noise_factor=gate_noise,
+                        aux_loss_coeff=aux_loss_coeff
+                    )
             elif self.adapter_type == 'adapter_mona':
                 print("启用的是 MonaAdapter for WindowAttention")
                 from models.components.model_utilities_adapt import MonaAdapter
@@ -203,14 +287,13 @@ class WindowAttention(nn.Module):
                     **adapt_kwargs_global
                 )
             else:
-                print("没有匹配的适配器类型或 'SpatialAdapter' 不在位置列表中。")
+                print("没有匹配的适配器类型")
                
         else:
             print("'SpatialAdapter' 不在适配器位置列表中。WindowAttention 将不会启用适配器。")
             # from models.components.model_utilities_adapt import Adapter
             # self.adapter_instance = Adapter(dim, **adapt_kwargs_global)
             # print('已偷偷启动普通Adapter在WindowAttention中')
-        
         print('==========WindowAttention初始化完成=============')
 
     def forward(self, x, mask=None):

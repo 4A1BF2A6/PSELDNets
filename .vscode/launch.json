@@ -11,12 +11,12 @@
             "program": "${file}",
             "console": "integratedTerminal",
             // "args": "${command:pickArgs}"
-            // "args": ["experiment=starss23/finetune_maccdoa"],
+            "args": ["experiment=starss23/finetune_maccdoa_sd_adapterfusion"],
             // "args": ["dataset=official2024", "wav_format=.wav"],
-            "args": [
-                "experiment=starss23_maccdoa",
-                "ckpt_path=/workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_075.ckpt"
-            ],
+            // "args": [
+            //     "experiment=starss23_maccdoa",
+            //     "ckpt_path=/workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_075.ckpt"
+            // ],
             "env": {
                 "CUDA_VISIBLE_DEVICES": "0"
             }
