@@ -1,0 +1,76 @@
+# configs/timefreq_visual.yaml
+# 专家路由可视化配置文件
+
+# 指定默认配置
+defaults:
+  - hydra: default.yaml
+  - logger: tensorboard.yaml
+  - paths: default.yaml
+  - augment: default.yaml
+  - data: default.yaml
+  - model: htsat.yaml
+  - loss: accdoa.yaml
+  - extras: default.yaml
+  - callbacks: default.yaml
+  - trainer: default.yaml
+  - task: seld.yaml
+  - adapt: default.yaml
+  - _self_
+  
+  # 实验配置
+  - experiment: starss23_maccdoa # null
+  - debug: null
+
+# 任务名称
+task_name: ${model.method}_${model.backbone}_expert_routing_visual
+experiment_name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
+
+# 可视化模式：valid(验证) | test(测试)
+mode: valid
+
+# 数据加载的工作进程数
+num_workers: 0
+
+# 检查点路径
+ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_078_se_mona_revise.ckpt
+
+# 随机种子
+seed: 2025
+
+# 是否使用PyTorch 2.0的模型编译功能
+compile: false
+
+# 专家路由可视化配置
+visual:
+  # 基本设置
+  num_samples: 100                    # 分析的样本数量
+  
+  # 时频分析配置
+  timefreq_analysis:
+    # Log-Mel频谱图参数
+    mel_params:
+      sr: 24000                     # 采样率
+      n_mels: 64                    # Mel频段数量
+      n_fft: 1024                   # FFT窗口大小
+      hop_length: 240               # 跳跃长度
+      fmax: 12000                   # 最大频率
+    
+    # 专家路由可视化参数
+    routing_visualization:
+      background_alpha: 1.0         # Log-Mel背景透明度
+      text_alpha: 1.0                # 专家编号文字透明度
+      font_size: 48                 # 专家编号字体大小 12 60
+      show_grid: true               # 是否显示网格线
+      expert_colors:                # 4个专家的颜色方案
+        - red
+        - blue
+        - green
+        - darkorange
+    
+    # 可视化参数
+    visualization_params:
+      figure_size_per_subplot: 5    # 每个子图的大小
+      dpi: 300                      # 保存图片的分辨率
+    
+
+  

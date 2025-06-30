@@ -1,4 +1,4 @@
-# configs/visual.yaml
+# configs/timefreq_visual.yaml
 
 # 指定默认配置
 defaults:
@@ -21,7 +21,7 @@ defaults:
   - debug: null
 
 # 任务名称
-task_name: ${model.method}_${model.backbone}_visual
+task_name: ${model.method}_${model.backbone}_expert_activation_visual
 experiment_name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
 
 # 可视化模式：valid(验证) | test(测试)
@@ -31,8 +31,8 @@ mode: valid
 num_workers: 8
 
 # 检查点路径（可通过命令行覆盖）
-# ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_078_se_mona_revise.ckpt # null epoch_075_raw.ckpt
-ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/AdapterFusion/epoch_039.ckpt
+# ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/AdapterFusion/epoch_039.ckpt
+ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_078_se_mona_revise.ckpt
 
 # 随机种子
 seed: 2025
@@ -40,11 +40,7 @@ seed: 2025
 # 是否使用PyTorch 2.0的模型编译功能
 compile: false
 
-# 可视化相关参数
+# 时频域适配器可视化配置
 visual:
-  max_batches: 18         # 提取特征时最多处理多少个batch 38
-  tsne_perplexity: 30     # t-SNE的perplexity参数
-  save_features: true     # 是否保存特征
-  save_tsne: true         # 是否保存t-SNE图
-  save_stats: true        # 是否保存统计图
-  
+  # 基本设置
+  num_samples: 10                 # 分析的batch数量（建议5-15个）  

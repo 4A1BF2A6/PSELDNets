@@ -23,6 +23,9 @@ from models.components.utils import trunc_normal_, to_2tuple, interpolate
 
 ADAPT_CONFIG = {}
 
+# 添加全局变量来跟踪MOE专家模块的初始化次数
+MOE_EXPERT_INIT_COUNT = 0
+
 def window_partition(x, window_size):
     """
     Args:
@@ -384,9 +387,9 @@ class SwinTransformerBlock(nn.Module):
         # print('启用的是MonaAdapter适配器 for MLP')
         # self.adapter_instance = MonaAdapter(dim, **self.adapt_kwargs_global)
 
-        from .mixture_of_existing_adapters import MixtureOfExistingAdapters
-        print('启用的是MixAdapter适配器 for MLP')
-        self.adapter_instance = MixtureOfExistingAdapters(dim, **self.adapt_kwargs_global)
+        # from .mixture_of_existing_adapters import MixtureOfExistingAdapters
+        # print('启用的是MixAdapter适配器 for MLP')
+        # self.adapter_instance = MixtureOfExistingAdapters(dim, **self.adapt_kwargs_global)
         print('===================SwinTransformerBlock========================')
 
     def forward(self, x):
@@ -449,7 +452,7 @@ class SwinTransformerBlock(nn.Module):
         x = x + self.drop_path(self.mlp(self.norm2(x)))
 
         # 添加xxx Adapter
-        x = self.adapter_instance(x)
+        # x = self.adapter_instance(x)
 
 
         return x, attn_matrix
