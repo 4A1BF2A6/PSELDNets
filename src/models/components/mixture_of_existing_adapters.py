@@ -16,9 +16,6 @@ class MixtureOfExistingAdapters(nn.Module):
     """
     def __init__(self, in_features,
                  experts_config=None,  # 新参数：专家配置列表
-                 dct_adapter_kwargs=None, 
-                 freq_adapter_kwargs=None,
-                 adapter_kwargs=None,   # 普通适配器参数
                  router_kwargs=None,
                  gate_noise_factor=1.0, 
                  aux_loss_coeff=0.01,

@@ -276,33 +276,33 @@ class HTSAT(nn.Module):
         if hasattr(self, 'room_checkpoints'):
             print('正在加载各个房间的适配器权重...')
             for expert_id, (room_name, checkpoint_path) in enumerate(self.room_checkpoints.items()):
-                    print(f'加载 {room_name} 的适配器权重（映射到 expert {expert_id}）...')
-                    room_ckpt = torch.load(checkpoint_path, map_location='cpu')['state_dict']
-                    # 移除多余前缀
-                    room_ckpt = {k.replace('net.', ''): v for k, v in room_ckpt.items()}
-                    room_ckpt = {k.replace('_orig_mod.', ''): v for k, v in room_ckpt.items()}
+                print(f'加载 {room_name} 的适配器权重（映射到 expert {expert_id}）...')
+                room_ckpt = torch.load(checkpoint_path, map_location='cpu', weights_only=True)['state_dict']
+                # 移除多余前缀
+                room_ckpt = {k.replace('net.', ''): v for k, v in room_ckpt.items()}
+                room_ckpt = {k.replace('_orig_mod.', ''): v for k, v in room_ckpt.items()}
 
-                    # 替换键名，加入 experts.{expert_id}
-                    adapted_ckpt = {}
-                    for k, v in room_ckpt.items():
-                        if 'adapter' in k and 'total_ops' not in k and 'total_params' not in k:
-                            # 将 'adapter_instance.fc1.weight' 变成 'adapter_instance.experts.{expert_id}.fc1.weight'
-                            new_k = k.replace('adapter_instance.', f'adapter_instance.experts.{expert_id}.')
-                            adapted_ckpt[new_k] = v
+                # 替换键名，加入 experts.{expert_id}
+                adapted_ckpt = {}
+                for k, v in room_ckpt.items():
+                    if 'adapter' in k and 'total_ops' not in k and 'total_params' not in k:
+                        # 将 'adapter_instance.fc1.weight' 变成 'adapter_instance.experts.{expert_id}.fc1.weight'
+                        new_k = k.replace('adapter_instance.', f'adapter_instance.experts.{expert_id}.')
+                        adapted_ckpt[new_k] = v
 
-                    # 执行赋值
-                    for k, v in adapted_ckpt.items():
-                        if k in self.state_dict():
-                            try:
-                                self.state_dict()[k].data.copy_(v)
-                                print(f'成功加载 {k} 的权重')
-                            except Exception as e:
-                                print(f'加载失败 {k}：{self.state_dict()[k].shape=} vs {v.shape=}')
-                        else:
-                            print(f'警告：找不到对应的键 {k}')
+                # 执行赋值
+                for k, v in adapted_ckpt.items():
+                    if k in self.state_dict():
+                        try:
+                            self.state_dict()[k].data.copy_(v)
+                            print(f'成功加载 {k} 的权重')
+                        except Exception as e:
+                            print(f'加载失败 {k}：{self.state_dict()[k].shape=} vs {v.shape=}')
+                    else:
+                        print(f'警告：找不到对应的键 {k}')
         else:
             print('没有对应的room_checkpoints属性，加载失败')
-            
+
     def forward(self, x):
         """
         x: waveform, (batch_size, num_channels, time_frames, mel_bins)

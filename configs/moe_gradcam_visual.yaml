@@ -1,0 +1,86 @@
+# configs/moe_gradcam_visual.yaml
+# MOE专家Grad-CAM可视化配置文件
+
+# 指定默认配置
+defaults:
+  - hydra: default.yaml
+  - logger: tensorboard.yaml
+  - paths: default.yaml
+  - augment: default.yaml
+  - data: default.yaml
+  - model: htsat.yaml
+  - loss: accdoa.yaml
+  - extras: default.yaml
+  - callbacks: default.yaml
+  - trainer: default.yaml
+  - task: seld.yaml
+  - adapt: default.yaml
+  - _self_
+  
+  # 实验配置
+  - experiment: starss23_maccdoa # null
+  - debug: null
+
+# 任务名称
+task_name: ${model.method}_${model.backbone}_moe_gradcam_visual
+experiment_name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
+
+# 可视化模式：valid(验证) | test(测试)
+mode: valid
+
+# 数据加载的工作进程数
+num_workers: 0
+
+# 检查点路径
+ckpt_path: /workspace/pycharm_projects/PSELDNets-main/ckpts/visual/MixAdapter/epoch_078_se_mona_revise.ckpt
+
+# 随机种子
+seed: 2025
+
+# 是否使用PyTorch 2.0的模型编译功能
+compile: false
+
+# MOE专家Grad-CAM可视化配置
+visual:
+  # 基本设置
+  num_samples: 10                     # 分析的样本数量
+  
+  # Grad-CAM分析配置
+  gradcam_analysis:
+    # Log-Mel频谱图参数
+    mel_params:
+      sr: 24000                       # 采样率 (对应 sample_rate)
+      n_mels: 64                      # Mel频段数量 (对应 n_mels)
+      n_fft: 1024                     # FFT窗口大小 (对应 nfft)
+      hop_length: 240                 # 跳跃长度 (对应 hoplen)
+      fmax: 12000                     # 最大频率 (sample_rate/2)
+    
+    # 专家检测配置  
+    expert_detection:
+      fallback_expert_names:          # 备用专家名称
+        - "dct_expert"
+        - "SE_expert" 
+        - "base_expert"
+        - "mona_expert"
+    
+    # Grad-CAM可视化参数
+    visualization_params:
+      overlay_alpha: 0.6              # 叠加层透明度
+      colormap: "jet"                 # 热力图颜色映射
+      background_alpha: 0.7           # 背景透明度
+      dpi: 300                        # 保存图片的分辨率
+      figure_size_per_subplot: 4      # 每个子图的大小
+      
+    # 梯度计算参数
+    gradient_params:
+      target_layer: "mlp"             # 目标层类型
+      use_guided_backprop: false      # 是否使用引导反向传播
+      smooth_grad: false              # 是否使用平滑梯度
+
+# # 任务设置
+# tags: ["visualization", "gradcam", "moe"]
+
+# # 路径设置  
+# paths:
+#   output_dir: ${hydra:runtime.cwd}/outputs/
+#   log_dir: ${paths.output_dir}/logs/

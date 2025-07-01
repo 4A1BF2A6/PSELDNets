@@ -238,12 +238,12 @@ class WindowAttention(nn.Module):
                 # 检查是否是浅层深层适配器融合
                 adapter_method = ADAPT_CONFIG.get('method', '')
                 if adapter_method == 'shallow_deep_adapterfusion':
+                    from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
                     print('启用的是浅层深层适配器融合 for WindowAttention')
                     # 使用全局计数器来获取当前块索引
                     current_block = get_current_block_index()
                     # 根据block索引获取对应的配置
                     block_config = get_block_config(current_block, adapt_kwargs_global)
-
                     if block_config:
                         print(f'当前块索引: {current_block}, 配置: {block_config}')
                         self.adapter_instance = MixtureOfExistingAdapters(
@@ -261,9 +261,6 @@ class WindowAttention(nn.Module):
                     from models.components.mixture_of_existing_adapters import MixtureOfExistingAdapters
                     # 获取各种配置参数
                     experts_config = adapt_kwargs_global.get('experts_config', None)
-                    dct_expert_config = adapt_kwargs_global.get('dct_expert_kwargs', {})
-                    freq_expert_config = adapt_kwargs_global.get('freq_expert_kwargs', {})
-                    adapter_config = adapt_kwargs_global.get('adapter_kwargs',{})
                     router_config = adapt_kwargs_global.get('router_kwargs', {})
                     gate_noise = adapt_kwargs_global.get('gate_noise_factor', 1.0)
                     aux_loss_coeff = adapt_kwargs_global.get('aux_loss_coeff', 0.01)
@@ -272,9 +269,6 @@ class WindowAttention(nn.Module):
                     self.adapter_instance = MixtureOfExistingAdapters(
                         dim,
                         experts_config=experts_config,
-                        dct_adapter_kwargs=dct_expert_config,
-                        freq_adapter_kwargs=freq_expert_config,
-                        adapter_kwargs=adapter_config,
                         router_kwargs=router_config,
                         gate_noise_factor=gate_noise,
                         aux_loss_coeff=aux_loss_coeff
