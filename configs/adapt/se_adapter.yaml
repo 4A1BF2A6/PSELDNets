@@ -4,7 +4,7 @@
 method: adapter_se
 
 adapt_kwargs:
-  position: [MlpAdapter,SpatialAdapter]  # 同时在MLP层和注意力层后添加适配器
+  position: [MlpAdapter]  # 同时在MLP层和注意力层后添加适配器
   type: adapter_se
   mlp_ratio: 0.5
   act_layer: gelu

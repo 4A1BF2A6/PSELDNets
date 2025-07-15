@@ -1,0 +1,243 @@
+method: shallow_deep_adapterfusion
+
+adapt_kwargs:
+  type: mixture_existing 
+  position: [MlpAdapter] # 在MLP层和注意力层后添加适配器
+
+  # 动态专家配置，针对不同block范围使用不同的专家策略
+  experts_config:
+
+    # 浅层内容感知 (Block 0-5): 使用多种不同类型的adapter实现内容感知
+    # 单一层使用的索引参数
+    - shallow_block_range: [0, 1]
+    # 双层使用的索引参数
+    # - shallow_block_range: [0, 19]
+      
+      # 混合适配器本身的参数
+      gate_noise_factor: 1.0 # 门控噪声因子，用于训练时增加探索
+      aux_loss_coeff: 0.01   # 辅助损失的系数
+
+      # 路由器参数
+      router_kwargs:
+        proj_dim: 128
+        k: 4  # 深层选择top-4环境感知专家
+        init_t: 0.5
+      experts:
+        - type: adapter
+          name: room4_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+        
+        - type: adapter
+          name: room6_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+        
+        - type: adapter
+          name: room7_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+        
+        - type: adapter
+          name: room9_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+        
+        - type: adapter
+          name: room12_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+        
+        - type: adapter
+          name: room13_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+        
+        - type: adapter
+          name: room14_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+        
+        - type: adapter
+          name: room21_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+        
+        - type: adapter
+          name: room22_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+
+      # # 路由器参数
+      # router_kwargs:
+      #   proj_dim: 128 # 内部投影维度
+      #   k: -1  # 浅层选择top-4内容感知专家
+      #   init_t: 0.5 # 温度初始化参数
+      # experts:
+      #   - type: dct     # DCT变换专家 - 频域内容感知
+      #     name: dct_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       dct_kernel_size: 3
+      #       adapter_scalar: 0.1
+
+      #   - type: SEAdapter # 通道注意力专家 - 特征重要性感知
+      #     name: SE_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+        
+      #   - type: adapter  # 基础适配器专家 - 通用内容表示
+      #     name: base_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+
+      #   - type: mona_adapter # MONA适配器专家 - 多尺度内容感知
+      #     name: mona_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+
+    # 深层环境感知 (Block 6-11): 使用房间特定的adapter实现环境感知
+    - deep_block_range: [2, 11]
+      gate_noise_factor: 1.0 # 门控噪声因子，用于训练时增加探索
+      aux_loss_coeff: 0.01   # 辅助损失的系数
+      
+      # # 路由器参数
+      # router_kwargs:
+      #   proj_dim: 128
+      #   k: 4  # 深层选择top-4环境感知专家
+      #   init_t: 0.5
+      # experts:
+      #   - type: adapter
+      #     name: room4_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+        
+      #   - type: adapter
+      #     name: room6_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+        
+      #   - type: adapter
+      #     name: room7_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+        
+      #   - type: adapter
+      #     name: room9_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+        
+      #   - type: adapter
+      #     name: room12_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+        
+      #   - type: adapter
+      #     name: room13_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+        
+      #   - type: adapter
+      #     name: room14_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+        
+      #   - type: adapter
+      #     name: room21_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+        
+      #   - type: adapter
+      #     name: room22_expert
+      #     kwargs:
+      #       mlp_ratio: 0.5
+      #       act_layer: gelu
+      #       adapter_scalar: 0.1
+
+        # 路由器参数
+      router_kwargs:
+        proj_dim: 128 # 内部投影维度
+        k: -1  # 浅层选择top-4内容感知专家
+        init_t: 0.5 # 温度初始化参数
+      experts:
+        - type: dct     # DCT变换专家 - 频域内容感知
+          name: dct_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            dct_kernel_size: 3
+            adapter_scalar: 0.1
+
+        - type: SEAdapter # 通道注意力专家 - 特征重要性感知
+          name: SE_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+        
+        - type: adapter  # 基础适配器专家 - 通用内容表示
+          name: base_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+
+        - type: mona_adapter # MONA适配器专家 - 多尺度内容感知
+          name: mona_expert
+          kwargs:
+            mlp_ratio: 0.5
+            act_layer: gelu
+            adapter_scalar: 0.1
+
+  # 预训练适配器路径（仅用于房间特定的环境感知专家）
+  room_checkpoints:
+    room4: ckpts/adapters_rooms/room4_adapter.ckpt
+    room6: ckpts/adapters_rooms/room6_adapter.ckpt
+    room7: ckpts/adapters_rooms/room7_adapter.ckpt
+    room9: ckpts/adapters_rooms/room9_adapter.ckpt
+    room12: ckpts/adapters_rooms/room12_adapter.ckpt
+    room13: ckpts/adapters_rooms/room13_adapter.ckpt
+    room14: ckpts/adapters_rooms/room14_adapter.ckpt
+    room21: ckpts/adapters_rooms/room21_adapter.ckpt
+    room22: ckpts/adapters_rooms/room22_adapter.ckpt

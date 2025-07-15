@@ -43,7 +43,7 @@ compile: false
 # MOE专家Grad-CAM可视化配置
 visual:
   # 基本设置
-  num_samples: 10                     # 分析的样本数量
+  num_samples: 50                     # 分析的样本数量
   
   # Grad-CAM分析配置
   gradcam_analysis:
@@ -65,22 +65,8 @@ visual:
     
     # Grad-CAM可视化参数
     visualization_params:
-      overlay_alpha: 0.6              # 叠加层透明度
-      colormap: "jet"                 # 热力图颜色映射
-      background_alpha: 0.7           # 背景透明度
+      overlay_alpha: 0.3              # 叠加层透明度
+      colormap: "jet"                 # 热力图颜色映射plasma hot jet
+      background_alpha: 1           # 背景透明度 1 0 对应 不透明 透明
       dpi: 300                        # 保存图片的分辨率
       figure_size_per_subplot: 4      # 每个子图的大小
-      
-    # 梯度计算参数
-    gradient_params:
-      target_layer: "mlp"             # 目标层类型
-      use_guided_backprop: false      # 是否使用引导反向传播
-      smooth_grad: false              # 是否使用平滑梯度
-
-# # 任务设置
-# tags: ["visualization", "gradcam", "moe"]
-
-# # 路径设置  
-# paths:
-#   output_dir: ${hydra:runtime.cwd}/outputs/
-#   log_dir: ${paths.output_dir}/logs/

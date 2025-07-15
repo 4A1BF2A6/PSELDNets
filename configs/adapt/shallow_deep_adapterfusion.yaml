@@ -2,16 +2,16 @@ method: shallow_deep_adapterfusion
 
 adapt_kwargs:
   type: mixture_existing 
-  position: [MlpAdapter, SpatialAdapter] # 在MLP层和注意力层后添加适配器
+  position: [MlpAdapter] # 在MLP层和注意力层后添加适配器
 
   # 动态专家配置，针对不同block范围使用不同的专家策略
   experts_config:
 
     # 浅层内容感知 (Block 0-5): 使用多种不同类型的adapter实现内容感知
     # 单一层使用的索引参数
-    # - shallow_block_range: [0, 9]
+    - shallow_block_range: [0, 9]
     # 双层使用的索引参数
-    - shallow_block_range: [0, 19]
+    # - shallow_block_range: [0, 19]
       # 混合适配器本身的参数
       gate_noise_factor: 1.0 # 门控噪声因子，用于训练时增加探索
       aux_loss_coeff: 0.01   # 辅助损失的系数
@@ -52,7 +52,7 @@ adapt_kwargs:
             adapter_scalar: 0.1
 
     # 深层环境感知 (Block 6-11): 使用房间特定的adapter实现环境感知
-    - deep_block_range: [20, 23]
+    - deep_block_range: [10, 11]
       gate_noise_factor: 1.0 # 门控噪声因子，用于训练时增加探索
       aux_loss_coeff: 0.01   # 辅助损失的系数
       

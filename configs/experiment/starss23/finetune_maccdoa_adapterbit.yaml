@@ -1,7 +1,7 @@
 # @package _global_
 defaults:                                       # 默认配置项定义部分
- - override /data: starss23/default.yaml        # 覆盖数据配置，使用STARSS23数据集
-#  - override /data: starss23/official.yaml        # 覆盖数据配置，使用STARSS23数据集
+#  - override /data: starss23/default.yaml        # 覆盖数据配置，使用STARSS23数据集
+ - override /data: starss23/official.yaml        # 覆盖数据配置，使用STARSS23数据集
  - override /loss: multi_accdoa.yaml            # 覆盖损失函数配置，使用多活动类定位方法（多ACCDOA）
  - override /adapt: adapter.yaml                # 覆盖适配器配置，使用基本适配器
 #  - override /augment: augmix1.yaml   
@@ -24,8 +24,7 @@ model:                                          # 模型相关配置部分
   
 trainer:                                        # 训练器配置部分
   max_epochs: 70                             
-  
-     # 最大训练轮数为70，STARSS23需要更多epoch
+  # 最大训练轮数为70，STARSS23需要更多epoch
   check_val_every_n_epoch: 1                    # 每1个epoch进行一次验证
 
 # 增加随机种子以确保实验可复现

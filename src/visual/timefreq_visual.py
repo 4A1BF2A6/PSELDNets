@@ -445,7 +445,7 @@ class TimeFreqExpertRoutingVisualizer:
             # 创建可视化图
             fig, ax = plt.subplots(1, 1, figsize=(14, 10))
             
-            # 显示Log-Mel作为背景
+            # 显示Log-Mel作为背景 cmap='viridis' 'hot' 'jet' 'plasma'
             im = ax.imshow(log_mel_spec, aspect='auto', origin='lower', 
                           cmap='viridis', alpha=routing_params.background_alpha)
             
@@ -544,7 +544,7 @@ def main(cfg: DictConfig):
         log.info(f"正在加载模型权重: {cfg.ckpt_path}")
         checkpoint = torch.load(cfg.ckpt_path, map_location='cpu', weights_only=True)
         if 'state_dict' in checkpoint:
-            model.load_state_dict(checkpoint['state_dict'], strict=True)
+            model.load_state_dict(checkpoint['state_dict'], strict=False)
         else:
             model.load_state_dict(checkpoint, strict=True)
     

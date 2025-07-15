@@ -2,7 +2,8 @@
 defaults:
   - override /data: starss23/official.yaml                         # 使用STARSS23官方数据集配置 official.yaml
   - override /loss: multi_accdoa.yaml                             # 使用多活动类定位损失函数
-  - override /adapt: shallow_deep_adapterfusion.yaml              # 使用浅层深层适配器融合配置
+  # - override /adapt: shallow_deep_adapterfusion.yaml              # 使用浅层深层适配器融合配置
+  - override /adapt: shallow_deep_adapterfusion_invert.yaml         # 使用浅层深层适配器融合配置_倒置
   # - override /augment: augmix1.yaml                             # 可选的数据增强配置
   - _self_                                                        # 当前配置优先级最高
 
@@ -34,10 +35,3 @@ compile: false                                  # 不使用PyTorch 2.0编译
 # post_processing: ACS                            # 使用ACS后处理方法
 # 使用滑动平均来平滑预测结果(必须与ACS方法同时使用)
 # post_processing_mv: move_avg
-
-
-# 适配器特定配置注释
-# 本实验使用浅层深层适配器融合架构：
-# - 浅层 (Block 0-5): 使用多种内容感知专家 (DCT, SE, Base, MONA, Conv)
-# - 深层 (Block 6-11): 使用房间特定的环境感知专家 (9个房间)
-# - 分层MOE设计实现内容理解与环境适应的分离

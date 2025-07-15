@@ -4,11 +4,11 @@
 method: adapter_dct
 
 adapt_kwargs:
-  position: [MlpAdapter,SpatialAdapter]  # 同时在MLP层和注意力层后添加适配器
+  position: [MlpAdapter]  # 同时在MLP层和注意力层后添加适配器
   type: adapter_dct
   mlp_ratio: 0.5
   act_layer: gelu
   adapter_scalar: 0.1
   #使用了torch_dct实现DCT卷积就不需要了，torch_dct不支持dct_kernel_size和dct_groups 最大 dct_kernel_size // 2 = 96 最好的是12
-  dct_kernel_size: 48  # 降低内核大小避免维度不匹配
+  dct_kernel_size: 3  # 降低内核大小避免维度不匹配 48
   # dct_groups: 1

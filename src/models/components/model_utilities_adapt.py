@@ -436,13 +436,18 @@ class SEAdapter(nn.Module):
         # 应用层归一化
         # x = self.norm(x)
 
+        # 1. 通道注意力
+        attn = self.channelAttention(x.transpose(1, 2))  # [B, 1, C]
+        x = x * attn
+
+
         x = self.down(x)
         x = self.act(x)
         x = self.up(x)
 
 
         # 转置以适应传统SE模块 [B, N, C] -> [B, C, N]
-        x_t = x.transpose(1, 2)
+        # x_t = x.transpose(1, 2)
         
         # 计算通道注意力
         # out = self.globalAvgPool(x_t) # [B, C, 1]
@@ -450,12 +455,12 @@ class SEAdapter(nn.Module):
         # out = self.act(out) # [B, 1, C/r]
         # out = self.up(out) # [B, 1, C]
         # attn = self.sigmoid(out) # [B, 1, C]
-        attn = self.channelAttention(x_t)
+        # attn = self.channelAttention(x_t)
         
         # 应用通道注意力
-        x_attn = x * attn # [B, N, C]
+        # x_attn = x * attn # [B, N, C]
 
-        output = x_attn
+        output = x
         # 再通过一个MLP
         # output = self.down(output)
         # output = self.act(output)

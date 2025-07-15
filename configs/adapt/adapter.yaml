@@ -2,7 +2,7 @@ method: adapter
 
 # Adapter of ACCDOA or mACCDOA
 adapt_kwargs:
-  position: [MlpAdapter,SpatialAdapter] # MlpAdapter or SpatialAdapter
+  position: [MlpAdapter] # MlpAdapter or SpatialAdapter
   type: linear_adapter # adapter
   mlp_ratio: 0.5
   adapter_scalar: 0.1 # learnable_scalar
