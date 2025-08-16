@@ -29,6 +29,10 @@ def main(cfg: DictConfig):
         # 对于STARSS23数据集的评估集，不处理标签（因为评估集没有标签）
         if cfg.dataset_type == 'eval' and cfg.dataset == 'STARSS23':
             return
+        
+        # 对于STARSS22数据集的评估集，不处理标签（因为评估集没有标签）
+        if cfg.dataset_type == 'eval' and cfg.dataset == 'STARSS22':
+            return
             
         # 提取各种格式的标签
         preprocessor.extract_accdoa_label()  # 提取ACCDOA格式标签

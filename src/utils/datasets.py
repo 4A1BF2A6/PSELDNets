@@ -135,6 +135,38 @@ class STARSS23(BaseDataset):
             'meta': None,
         }
 
+class STARSS22(BaseDataset):
+    ''' STARSS22 dataset for DCASE2022-Task3 '''
+    def __init__(self, root_dir, cfg):
+        super().__init__()
+        # 13类，和STARSS23完全一致
+        self.label_dic = {
+            'Female speech, woman speaking': 0,
+            'Male speech, man speaking': 1,
+            'Clapping': 2,
+            'Telephone': 3,
+            'Laughter': 4,
+            'Domestic sounds': 5,
+            'Walk, footsteps': 6,
+            'Door, open or close': 7,
+            'Music': 8,
+            'Musical instrument': 9,
+            'Water tap, faucet': 10,
+            'Bell': 11,
+            'Knock': 12
+        }
+        self.max_ov = 3
+        self.num_classes = len(self.label_dic)
+        self.root_dir = Path(root_dir).joinpath('STARSS22')
+        self.dataset_dir['dev']['foa'] = self.root_dir / 'foa_dev'
+        self.dataset_dir['dev']['mic'] = self.root_dir / 'mic_dev'
+        self.dataset_dir['dev']['meta'] = self.root_dir / 'metadata_dev'
+        self.dataset_dir['eval'] = {
+            'foa': self.root_dir / 'foa_eval',
+            'mic': self.root_dir / 'mic_eval',
+            'meta': None,
+        }
+
 class L3DAS22(BaseDataset):
     ''' L3DAS22 dataset
 

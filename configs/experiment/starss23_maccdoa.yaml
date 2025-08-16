@@ -1,4 +1,6 @@
 # @package _global_
+# 这个文件是用于模型可视化用的，可视化配置 (configs/visual.yaml)：用于模型可视化
+# 推理配置 (configs/infer.yaml)：用于模型推理
 defaults:
  - override /data: starss23/default.yaml
  - override /loss: multi_accdoa.yaml

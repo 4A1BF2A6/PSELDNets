@@ -28,6 +28,11 @@ experiment_name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
 # 可视化模式：valid(验证) | test(测试)
 mode: valid
 
+# 不要加载默认的预训练权重
+model:
+  kwargs:
+    audioset_pretrain: false
+
 # 数据加载的工作进程数
 num_workers: 0
 
@@ -43,7 +48,7 @@ compile: false
 # MOE专家Grad-CAM可视化配置
 visual:
   # 基本设置
-  num_samples: 50                     # 分析的样本数量
+  num_samples: 200                     # 分析的样本数量
   
   # Grad-CAM分析配置
   gradcam_analysis:
@@ -58,14 +63,14 @@ visual:
     # 专家检测配置  
     expert_detection:
       fallback_expert_names:          # 备用专家名称
-        - "dct_expert"
-        - "SE_expert" 
-        - "base_expert"
-        - "mona_expert"
+        - "DCTAdapter"
+        - "SEAdapter" 
+        - "LinearAdapter"
+        - "ConvAdapter"
     
     # Grad-CAM可视化参数
     visualization_params:
-      overlay_alpha: 0.3              # 叠加层透明度
+      overlay_alpha: 0.5              # 叠加层透明度
       colormap: "jet"                 # 热力图颜色映射plasma hot jet
       background_alpha: 1           # 背景透明度 1 0 对应 不透明 透明
       dpi: 300                        # 保存图片的分辨率

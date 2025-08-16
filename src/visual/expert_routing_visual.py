@@ -79,7 +79,7 @@ class TimeFreqExpertRoutingVisualizer:
                 return self.cfg.visual.timefreq_analysis.expert_detection.fallback_expert_names
             except:
                 # 最后的默认专家名称
-                return ['dct_expert', 'SE_expert', 'base_expert_1', 'mona_expert']
+                return ['DCTAdapter', 'SEAdapter', 'LinearAdapter', 'ConvAdapter']
     
     def _get_router_info(self):
         """获取router模块信息"""
@@ -494,7 +494,7 @@ class TimeFreqExpertRoutingVisualizer:
             log.info(f"样本 {sample_idx + 1} 的均匀专家分布图已保存到: {save_path}")
 
 
-@hydra.main(version_base="1.3", config_path="../../configs", config_name="timefreq_visual.yaml")
+@hydra.main(version_base="1.3", config_path="../../configs", config_name="expert_routing_visual.yaml")
 def main(cfg: DictConfig):
     """专家路由可视化主函数"""
     

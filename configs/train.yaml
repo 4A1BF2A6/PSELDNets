@@ -27,7 +27,7 @@ task_name: ${model.method}_${model.backbone}  # 使用模型方法和骨干网�
 experiment_name: ${now:%Y-%m-%d}_${now:%H-%M-%S}  # 使用时间戳作为实验名称
 
 # 数据加载的工作进程数
-num_workers: 8
+num_workers: 8  # 8 0
 
 # 声音事件检测(SED)的阈值
 sed_threshold: 0.5

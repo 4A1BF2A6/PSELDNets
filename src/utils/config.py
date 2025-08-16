@@ -4,6 +4,7 @@ import utils.feature as feature
 
 dataset_dict = {
     'STARSS23': STARSS23,
+    'STARSS22': STARSS22,
     'synth': Synthesis,
     'DCASE2021': DCASE2021TASK3,
     'L3DAS22': L3DAS22,

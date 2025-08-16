@@ -2,7 +2,7 @@ method: adapter_layer
 
 adapt_kwargs:
   type: mixture_existing 
-  position: [MlpAdapter] # 在MLP层和注意力层后添加适配器 MlpAdapter or SpatialAdapter
+  position: [MlpAdapter, ] # 在MLP层和注意力层后添加适配器 MlpAdapter or SpatialAdapter
   
   # 混合适配器本身的参数
   gate_noise_factor: 1.0 # 门控噪声因子，用于训练时增加探索

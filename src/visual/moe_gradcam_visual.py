@@ -83,7 +83,7 @@ class MOEExpertGradCAMVisualizer:
             try:
                 return self.cfg.visual.gradcam_analysis.expert_detection.fallback_expert_names
             except:
-                return ['dct_expert', 'SE_expert', 'base_expert', 'mona_expert']
+                return ['DCTAdapter', 'SEAdapter', 'LinearAdapter', 'ConvAdapter']
 
     def _register_expert_modules(self):
         """
@@ -376,31 +376,40 @@ class MOEExpertGradCAMVisualizer:
             return
 
         # 创建2行(n_experts+1)列的子图
-        fig, axes = plt.subplots(2, n_experts + 1, figsize=(4 * (n_experts + 1), 8))
+        # fig, axes = plt.subplots(2, n_experts + 1, figsize=(4 * (n_experts + 1), 8))
 
         # 第一行：原始频谱图 + 每个专家的Grad-CAM热力图
-        im0 = axes[0, 0].imshow(original_spec, aspect='auto', origin='lower', cmap='viridis')
-        axes[0, 0].set_title('Original Log-Mel Spectrogram', fontsize=12, fontweight='bold')
-        axes[0, 0].set_xlabel('Time Frames')
-        axes[0, 0].set_ylabel('Mel Frequency')
-        plt.colorbar(im0, ax=axes[0, 0], shrink=0.8)
+        # im0 = axes[0, 0].imshow(original_spec, aspect='auto', origin='lower', cmap='viridis')
+        # axes[0, 0].set_title('Original Log-Mel Spectrogram', fontsize=12, fontweight='bold')
+        # axes[0, 0].set_xlabel('Time Frames')
+        # axes[0, 0].set_ylabel('Mel Frequency')
+        # plt.colorbar(im0, ax=axes[0, 0], shrink=0.8)
 
-        for i, (expert_name, gradcam) in enumerate(expert_gradcams.items()):
-            ax = axes[0, i + 1]
-            im = ax.imshow(gradcam, aspect='auto', origin='lower', cmap='jet', alpha=0.8)
-            ax.set_title(f'{expert_name}\nGrad-CAM Heatmap', fontsize=10, fontweight='bold')
-            ax.set_xlabel('Time Frames')
-            ax.set_ylabel('Frequency')
-            plt.colorbar(im, ax=ax, shrink=0.8)
+        # for i, (expert_name, gradcam) in enumerate(expert_gradcams.items()):
+        #     ax = axes[0, i + 1]
+        #     im = ax.imshow(gradcam, aspect='auto', origin='lower', cmap='jet', alpha=0.8)
+        #     ax.set_title(f'{expert_name}\nGrad-CAM Heatmap', fontsize=10, fontweight='bold')
+        #     ax.set_xlabel('Time Frames')
+        #     ax.set_ylabel('Frequency')
+        #     plt.colorbar(im, ax=ax, shrink=0.8)
 
         # 第二行：原始频谱图与Grad-CAM热力图叠加
-        axes[1, 0].imshow(original_spec, aspect='auto', origin='lower', cmap='viridis')
-        axes[1, 0].set_title('Reference: Original Spectrogram', fontsize=12, fontweight='bold')
-        axes[1, 0].set_xlabel('Time Frames')
-        axes[1, 0].set_ylabel('Mel Frequency')
+        # axes[1, 0].imshow(original_spec, aspect='auto', origin='lower', cmap='viridis')
+        # axes[1, 0].set_title('Reference: Original Spectrogram', fontsize=12, fontweight='bold')
+        # axes[1, 0].set_xlabel('Time Frames')
+        # axes[1, 0].set_ylabel('Mel Frequency')
 
+        # 只保留第二行
+        fig, axes = plt.subplots(1, n_experts + 1, figsize=(4 * (n_experts + 1), 4))
+        im0 = axes[0].imshow(original_spec, aspect='auto', origin='lower', cmap='viridis')
+        axes[0].set_title('(a) Log-Mel Spectrogram', fontsize=15, )
+        axes[0].set_xlabel('Time Frames')
+        axes[0].set_ylabel('Mel Frequency')
+        plt.colorbar(im0, ax=axes[0], shrink=0.8)
+        
         for i, (expert_name, gradcam) in enumerate(expert_gradcams.items()):
-            ax = axes[1, i + 1]
+            # ax = axes[1, i + 1]
+            ax = axes[i + 1]
             ax.imshow(original_spec, aspect='auto', origin='lower', cmap='viridis', alpha=viz_params.background_alpha)
             if gradcam.shape != original_spec.shape:
                 gradcam_resized = cv2.resize(gradcam, (original_spec.shape[1], original_spec.shape[0]))
@@ -408,13 +417,31 @@ class MOEExpertGradCAMVisualizer:
                 gradcam_resized = gradcam
             im_overlay = ax.imshow(gradcam_resized, aspect='auto', origin='lower', 
                                    cmap=viz_params.colormap, alpha=viz_params.overlay_alpha, vmin=0, vmax=1)
-            ax.set_title(f'{expert_name}\nOverlay Visualization', fontsize=10, fontweight='bold')
+            # ax.set_title(f'{expert_name}\nOverlay Visualization', fontsize=10, fontweight='bold')
+            if expert_name == 'dct_expert':
+                expert_name = '(b) DCTAdapter'
+            elif expert_name == 'SE_expert':
+                expert_name = '(c) SEAdapter'
+            elif expert_name == 'base_expert_1':
+                expert_name = '(d) LinearAdapter'
+            elif expert_name == 'mona_expert':
+                expert_name = '(e) ConvAdapter'
+
+            ax.set_title(f'{expert_name}', fontsize=15, )
             ax.set_xlabel('Time Frames')
             ax.set_ylabel('Frequency')
-            plt.colorbar(im_overlay, ax=ax, shrink=0.8, label='Attention Intensity')
+            plt.colorbar(im_overlay, ax=ax, shrink=0.8, ) # label='Attention Intensity'
 
-        fig.suptitle(f'Sample {sample_idx}: {filename}\nMOE Expert Grad-CAM Visualization', 
-                     fontsize=14, fontweight='bold')
+        # fig.suptitle(f'Sample {sample_idx}: {filename}\nMOE Expert Grad-CAM Visualization', 
+        #              fontsize=14, fontweight='bold')
+        fig.suptitle(f'Mel-spectrogram and corresponding feature maps from \naudio segment of the people talking.', fontsize=15, )  
+        
+        # 在图像下方中央添加一行文字说明
+        # fig.text(0.5, -0.05, "Mel-spectrogram and corresponding Grad-CAM feature maps derived from a sample of the xxx class.", ha='center', va='center', fontsize=14)
+        
+        # 设置总标题
+        fig.suptitle(f'Mel-spectrogram and corresponding feature maps from \naudio segment of the people talking.', fontsize=15)
+
         plt.tight_layout()
         save_path = save_dir / f'gradcam_sample_{sample_idx}.png'
         plt.savefig(save_path, dpi=viz_params.dpi, bbox_inches='tight')
@@ -422,9 +449,9 @@ class MOEExpertGradCAMVisualizer:
         log.info(f"Sample {sample_idx} Grad-CAM visualization saved: {save_path}")
 
         # 保存数值结果（可用于后续分析）
-        results_path = save_dir / f'gradcam_data_sample_{sample_idx}.pkl'
-        with open(results_path, 'wb') as f:
-            pickle.dump(gradcam_results, f)
+        # results_path = save_dir / f'gradcam_data_sample_{sample_idx}.pkl'
+        # with open(results_path, 'wb') as f:
+        #     pickle.dump(gradcam_results, f)
 
     def generate_expert_comparison_heatmap(self, max_samples=10, save_path='./expert_comparison_heatmap.png'):
         """

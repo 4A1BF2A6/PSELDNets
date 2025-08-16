@@ -1,0 +1,38 @@
+# @package _global_
+defaults:
+  - override /data: starss22/official.yaml                         # 使用STARSS23官方数据集配置 official.yaml
+  - override /loss: multi_accdoa.yaml                             # 使用多活动类定位损失函数
+  # - override /adapt: shallow_deep_adapterfusion.yaml              # 使用浅层深层适配器融合配置
+  # - override /adapt: shallow_deep_adapterfusion_invert.yaml         # 使用浅层深层适配器融合配置_倒置
+  - override /adapt: shallow_deep_adapterfusion.yaml         # 使用浅层深层适配器融合配置_倒置
+  # - override /augment: augmix1.yaml                             # 可选的数据增强配置
+  - _self_                                                        # 当前配置优先级最高
+
+model:                                          # 模型相关配置
+  batch_size: 32                                # 训练批次大小
+  method: multi_accdoa                          # 使用多活动类定位方法 (multi-Activity-Coupled Cartesian DOA)
+  loss:                                         # 损失函数配置
+    _target_: loss.multi_accdoa.Losses          # 指定损失函数类
+  kwargs:                                       # 模型关键字参数
+    pretrained_path: ckpts/mACCDOA-HTSAT-0.567.ckpt  # 预训练模型路径 backboone
+    audioset_pretrain: false                    # 不使用AudioSet预训练权重
+    
+  optimizer:                                    # 优化器配置
+    kwargs: {lr: 0.001}                        # 学习率设置为0.0001 (适配器微调通常使用较小学习率)
+  lr_scheduler:                                 # 学习率调度器配置
+    kwargs: {step_size: 55}                     # 每55个epoch调整学习率
+
+trainer:                                        # 训练器配置
+  max_epochs: 80                               # 最大训练轮数 (浅层深层适配器可能需要更多epoch收敛)
+  check_val_every_n_epoch: 1                    # 每1个epoch进行验证
+  gradient_clip_val: 1.0                        # 梯度裁剪，防止梯度爆炸
+
+# 实验配置
+seed: 2025                                      # 随机种子确保可复现性
+compile: false                                  # 不使用PyTorch 2.0编译
+
+# STARSS23数据集特定配置
+# sed_threshold: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.1, 0.5, 0.5]  # 13个类别的SED阈值
+# post_processing: ACS                            # 使用ACS后处理方法
+# 使用滑动平均来平滑预测结果(必须与ACS方法同时使用)
+# post_processing_mv: move_avg
