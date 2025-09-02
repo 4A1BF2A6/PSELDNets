@@ -892,13 +892,20 @@ class WConvAdapter(nn.Module):
 '''
 
 class MonaOp(nn.Module):
-    def __init__(self, in_features):
+    def __init__(self, in_features, conv_type='1d'):
         super().__init__()
-        self.conv1 = nn.Conv2d(in_features, in_features, kernel_size=3, padding=3 // 2, groups=in_features)
-        self.conv2 = nn.Conv2d(in_features, in_features, kernel_size=5, padding=5 // 2, groups=in_features)
-        self.conv3 = nn.Conv2d(in_features, in_features, kernel_size=7, padding=7 // 2, groups=in_features)
-
-        self.projector = nn.Conv2d(in_features, in_features, kernel_size=1, )
+        if conv_type == '1d':
+            # 1d卷积
+            self.conv1 = nn.Conv1d(in_features, in_features, kernel_size=3, padding=3 // 2, groups=in_features)
+            self.conv2 = nn.Conv1d(in_features, in_features, kernel_size=5, padding=5 // 2, groups=in_features)
+            self.conv3 = nn.Conv1d(in_features, in_features, kernel_size=7, padding=7 // 2, groups=in_features)
+            self.projector = nn.Conv1d(in_features, in_features, kernel_size=1, )
+        else:
+            # 2d卷积
+            self.conv1 = nn.Conv2d(in_features, in_features, kernel_size=3, padding=3 // 2, groups=in_features)
+            self.conv2 = nn.Conv2d(in_features, in_features, kernel_size=5, padding=5 // 2, groups=in_features)
+            self.conv3 = nn.Conv2d(in_features, in_features, kernel_size=7, padding=7 // 2, groups=in_features)
+            self.projector = nn.Conv2d(in_features, in_features, kernel_size=1, )
 
     def forward(self, x):
         identity = x
@@ -930,7 +937,7 @@ class MonaAdapter(nn.Module):
 
         self.dropout = nn.Dropout(p=0.1)
 
-        self.adapter_conv = MonaOp(hidden_features)
+        self.adapter_conv = MonaOp(hidden_features, conv_type='1d')
 
         self.norm = nn.LayerNorm(in_dim)
         self.gamma = nn.Parameter(torch.ones(in_dim) * 1e-6)
