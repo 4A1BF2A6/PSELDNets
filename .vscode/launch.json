@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             // "args": "${command:pickArgs}"
-            "args": ["experiment=starss22/finetune_maccdoa_MixAdapter"],
+            "args": ["experiment=starss23/finetune_maccdoa_dct_adapter"],
             // "args": ["dataset=official2024", "wav_format=.wav"],
             // "args": [
             //     "experiment=starss23_maccdoa",

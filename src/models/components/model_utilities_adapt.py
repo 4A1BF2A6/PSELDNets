@@ -175,8 +175,8 @@ class DCTAdapter(nn.Module):
         freq_dim (int): 频率维度，默认为-1表示特征向量的最后一个维度
     """
     def __init__(self, in_features, mlp_ratio=0.25, act_layer='gelu',
-                 adapter_scalar=1, dct_kernel_size=3, dct_groups=1, 
-                 freq_dim=-1, **kwargs):
+                 adapter_scalar=1,
+                **kwargs):
         super().__init__()
         hidden_features = int(in_features * mlp_ratio)
         
@@ -193,17 +193,9 @@ class DCTAdapter(nn.Module):
             self.scale = nn.Parameter(torch.ones(1))
         else:
             self.scale = adapter_scalar
-        
-        # DCT变换相关参数
-        self.dct_kernel_size = dct_kernel_size
-        self.dct_groups = dct_groups
-        self.freq_dim = freq_dim
-        
-        # 生成DCT基函数
-        self.register_buffer('dct_basis', self._get_dct_basis(dct_kernel_size))
-        
+    
         # 频域转换层
-        self.freq_down = nn.Linear(max(12, self.dct_kernel_size), hidden_features)
+        self.freq_down = nn.Linear(in_features, hidden_features)
         self.freq_up = nn.Linear(hidden_features, in_features)
         
         # 残差连接前的层归一化
@@ -211,18 +203,6 @@ class DCTAdapter(nn.Module):
         
         self.init_weights()
         
-    def _get_dct_basis(self, kernel_size):
-        """生成DCT基函数矩阵"""
-        dct_basis = torch.zeros(kernel_size, kernel_size)
-        for k in range(kernel_size):
-            for n in range(kernel_size):
-                if k == 0:
-                    dct_basis[k, n] = 1.0 / math.sqrt(kernel_size)
-                else:
-                    dct_basis[k, n] = math.sqrt(2.0 / kernel_size) * math.cos(
-                        math.pi * (n + 0.5) * k / kernel_size)
-        return dct_basis
-    
     def init_weights(self):
         """初始化权重，使输出接近零"""
         nn.init.kaiming_uniform_(self.freq_down.weight, a=math.sqrt(5))
@@ -230,59 +210,20 @@ class DCTAdapter(nn.Module):
         nn.init.zeros_(self.freq_up.weight)
         nn.init.zeros_(self.freq_up.bias)
     
-    def apply_dct_conv(self, x):
-        """应用DCT卷积操作提取频率特征
-        
+    def apply_dct_conv(self, x, hw_shapes=None):
+        """应用DCT卷积操作提取时频域率特征
         Args:
-            x: 输入张量，形状为 [batch_size, seq_len, in_features]
-            
+            x: 输入张量，形状为 [batch_size, seq_len, in_features] 其中 N = T * F
         Returns:
-            频率增强的特征张量
+            时频域率增强的特征张量
         """
-        # 手动实现DCT卷积
-        # batch_size, seq_len, dim = x.shape
-        
-        # # 为了更好地处理边界，我们使用反射填充
-        # padding = self.dct_kernel_size // 2
-        
-        # # 对频率维度应用DCT卷积
-        # # 首先重塑为形状便于卷积操作
-        # x_reshaped = x.transpose(1, 2).contiguous()  # [B, D, L]
-        
-        # # 应用反射填充
-        # x_padded = F.pad(x_reshaped, (padding, padding), mode='reflect')
-        
-        # # 提取滑动窗口
-        # x_windows = []
-        # for i in range(seq_len):
-        #     window = x_padded[:, :, i:i+self.dct_kernel_size]
-        #     x_windows.append(window)
-        
-        # # 将窗口堆叠成批次
-        # x_windows = torch.stack(x_windows, dim=2)  # [B, D, L, K]
-        
-        # # 应用DCT变换
-        # dct_features = torch.matmul(x_windows, self.dct_basis.t())  # [B, D, L, K]
-        
-        # # 只保留低频分量（前几个DCT系数）
-        # keep_freqs = max(1, self.dct_kernel_size // 2)
-        # dct_features = dct_features[:, :, :, :keep_freqs]
-        
-        # # 重新展平
-        # dct_features = dct_features.reshape(batch_size, dim, seq_len, -1)
-        # dct_features = dct_features.permute(0, 2, 1, 3).contiguous()
-        # dct_features = dct_features.reshape(batch_size, seq_len, -1)
+        B, N, C = x.shape
 
-        # 使用torch_dct实现DCT卷积 x.shape is [B, N, C]
-        # x_transposed = x.transpose(1, 2)  # -> [B, C, N]
-    
-        # 在通道维度上做 DCT
-        dct_output = dct.dct(x, norm='ortho')  # DCT-II with orthogonal normalization
-        
-        # 只保留低频分量（前几个DCT系数）
-        keep_freqs = max(12, self.dct_kernel_size)
-        dct_output = dct_output[:, :, :keep_freqs]  # -> [B, N, keep_freqs]
+        h, w = hw_shapes = (int(math.sqrt(N)), int(math.sqrt(N)))
 
+        x = x.reshape(B, h, w, C).permute(0, 3, 1, 2) 
+        dct_output = dct.dct_2d(x, norm='ortho') # DCT-II with orthogonal normalization
+        dct_output   = dct_output.permute(0, 2, 3, 1).reshape(B, N, C)
         return dct_output
     
     def forward(self, x, residual=None):
@@ -295,7 +236,7 @@ class DCTAdapter(nn.Module):
         Returns:
             处理后的张量
         """
-        # 1. 应用层归一化
+
         x_norm = self.norm(x)
         
         # 2. 提取DCT频率特征
@@ -309,77 +250,11 @@ class DCTAdapter(nn.Module):
         # 4. 应用缩放
         out = out * self.scale
         
-        # 5. 加上残差连接(如果提供)
         if residual is not None:
             out = out + residual
         
         return out
-
-class DCTFrequencyAdapter(nn.Module):
-    """
-        简化版频率适配器，避免维度问题
-    """
-
-    def __init__(self, in_features, mlp_ratio=0.25, act_layer='gelu',
-                 adapter_scalar=1, **kwargs):
-        super().__init__()
-        hidden_features = int(in_features * mlp_ratio)
-        
-        # 基础适配器组件
-        if act_layer == 'gelu':
-            self.act = nn.GELU()
-        elif act_layer == 'relu':
-            self.act = nn.ReLU()
-        else:
-            raise ValueError(f"Activation layer {act_layer} not supported")
-            
-        if adapter_scalar == 'learnable_scalar':
-            self.scale = nn.Parameter(torch.ones(1))
-        else:
-            self.scale = adapter_scalar
-        
-        # 频率通道注意力
-        self.channel_attention = nn.Sequential(
-            nn.LayerNorm(in_features),
-            nn.Linear(in_features, in_features),
-            nn.Sigmoid()
-        )
-        
-        # MLP路径
-        self.norm = nn.LayerNorm(in_features)
-        self.down = nn.Linear(in_features, hidden_features)
-        self.up = nn.Linear(hidden_features, in_features)
-
-    def forward(self, x, residual=None):
-
-        '''
-            x.shape is [B, L, D]
-            for starss23, L = 1000, D = 128
-            
-        '''
-        # 应用层归一化
-        x_norm = self.norm(x)
-        
-        # 计算通道注意力
-        attn = self.channel_attention(x_norm)
-        
-        # 应用通道注意力
-        x_attn = x_norm * attn
-        
-        # MLP处理
-        hidden = self.down(x_attn)
-        hidden = self.act(hidden)
-        output = self.up(hidden)
-        
-        # 缩放
-        output = output * self.scale
-        
-        # 可选残差
-        if residual is not None:
-            output = output + residual
-            
-        return output
-
+    
 class SEAdapter(nn.Module):
     """
         SE适配器，通道注意力
@@ -890,22 +765,14 @@ class WConvAdapter(nn.Module):
 '''
     Mona适配器模块
 '''
-
 class MonaOp(nn.Module):
     def __init__(self, in_features, conv_type='1d'):
         super().__init__()
-        if conv_type == '1d':
-            # 1d卷积
-            self.conv1 = nn.Conv1d(in_features, in_features, kernel_size=3, padding=3 // 2, groups=in_features)
-            self.conv2 = nn.Conv1d(in_features, in_features, kernel_size=5, padding=5 // 2, groups=in_features)
-            self.conv3 = nn.Conv1d(in_features, in_features, kernel_size=7, padding=7 // 2, groups=in_features)
-            self.projector = nn.Conv1d(in_features, in_features, kernel_size=1, )
-        else:
-            # 2d卷积
-            self.conv1 = nn.Conv2d(in_features, in_features, kernel_size=3, padding=3 // 2, groups=in_features)
-            self.conv2 = nn.Conv2d(in_features, in_features, kernel_size=5, padding=5 // 2, groups=in_features)
-            self.conv3 = nn.Conv2d(in_features, in_features, kernel_size=7, padding=7 // 2, groups=in_features)
-            self.projector = nn.Conv2d(in_features, in_features, kernel_size=1, )
+
+        self.conv1 = nn.Conv2d(in_features, in_features, kernel_size=3, padding=3 // 2, groups=in_features)
+        self.conv2 = nn.Conv2d(in_features, in_features, kernel_size=5, padding=5 // 2, groups=in_features)
+        self.conv3 = nn.Conv2d(in_features, in_features, kernel_size=7, padding=7 // 2, groups=in_features)
+        self.projector = nn.Conv2d(in_features, in_features, kernel_size=1, )
 
     def forward(self, x):
         identity = x
@@ -937,7 +804,7 @@ class MonaAdapter(nn.Module):
 
         self.dropout = nn.Dropout(p=0.1)
 
-        self.adapter_conv = MonaOp(hidden_features, conv_type='1d')
+        self.adapter_conv = MonaOp(hidden_features)
 
         self.norm = nn.LayerNorm(in_dim)
         self.gamma = nn.Parameter(torch.ones(in_dim) * 1e-6)
@@ -972,17 +839,9 @@ class MonaAdapter(nn.Module):
 
         nonlinear = self.nonlinear(project1)
         nonlinear = self.dropout(nonlinear)
-        project2 = self.project2(nonlinear)
+        project2 = self.project2(nonlinear)        
 
-        # return (identity + project2) * self.scale
-        
-        '''
-            修改归一化方式
-        '''
-
-        # 限幅
         project2 = torch.tanh(project2)
-        # 残差融合
         output = (identity + project2) * self.scale
         # 再归一化
         output = self.norm(output)

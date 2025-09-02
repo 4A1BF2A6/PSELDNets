@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from einops import rearrange
 
 from .moa_utils import CosineTopKGate, load_importance_loss
-from .model_utilities_adapt import Adapter, ConvAdapterDesign1, DCTAdapter, DCTFrequencyAdapter, MonaAdapter, SEAdapter
+from .model_utilities_adapt import Adapter, ConvAdapterDesign1, DCTAdapter, MonaAdapter, SEAdapter
 
 class MixtureOfExistingAdapters(nn.Module):
     """

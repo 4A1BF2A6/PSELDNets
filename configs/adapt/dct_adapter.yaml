@@ -10,5 +10,3 @@ adapt_kwargs:
   act_layer: gelu
   adapter_scalar: 0.1
   #使用了torch_dct实现DCT卷积就不需要了，torch_dct不支持dct_kernel_size和dct_groups 最大 dct_kernel_size // 2 = 96 最好的是12
-  dct_kernel_size: 3  # 降低内核大小避免维度不匹配 48
-  # dct_groups: 1
