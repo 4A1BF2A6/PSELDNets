@@ -253,7 +253,7 @@ class DCTAdapter(nn.Module):
             residual: 可选的残差连接输入
             
         Returns:
-            处理后的张量
+            处理后的张量 
         """
 
         x_norm = self.norm(x)
