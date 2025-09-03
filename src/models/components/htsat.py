@@ -202,13 +202,6 @@ class WindowAttention(nn.Module):
                     in_features=dim,
                     **adapt_kwargs_global
                 )
-            elif self.adapter_type == 'adapter_frequency':
-                print("启用的是 DCTFrequencyAdapter for WindowAttention")
-                from models.components.model_utilities_adapt import DCTFrequencyAdapter
-                self.adapter_instance = DCTFrequencyAdapter(
-                    in_features=dim,
-                    **adapt_kwargs_global
-                )
             elif self.adapter_type == 'adapter_se':
                 print("启用的是 SEAdapter for WindowAttention")
                 from models.components.model_utilities_adapt import SEAdapter

@@ -9,4 +9,6 @@ adapt_kwargs:
   mlp_ratio: 0.5
   act_layer: gelu
   adapter_scalar: 0.1
-  #使用了torch_dct实现DCT卷积就不需要了，torch_dct不支持dct_kernel_size和dct_groups 最大 dct_kernel_size // 2 = 96 最好的是12
+  # 使用真实的T和F参数，避免sqrt(N)的不准确拆分
+  # time_steps: 64  # STARSS23数据集的时间步长
+  # freq_bins: 1001  # STARSS23数据集的频率分量数

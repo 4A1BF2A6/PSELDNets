@@ -172,10 +172,6 @@ class Mlp(nn.Module):
                 print('启用的是DCT适配器 for MLP')
                 from .model_utilities_adapt import DCTAdapter
                 self.adapter_instance = DCTAdapter(in_features, **adapt_kwargs_global)
-            elif self.current_adapter_type == 'adapter_frequency':
-                print('启用的是DCTFrequency适配器 for MLP')
-                from .model_utilities_adapt import DCTFrequencyAdapter
-                self.adapter_instance = DCTFrequencyAdapter(in_features, **adapt_kwargs_global)
             elif self.current_adapter_type == 'adapter_se':
                 print('启用的是SE适配器 for MLP')
                 from .model_utilities_adapt import SEAdapter

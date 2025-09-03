@@ -173,9 +173,11 @@ class DCTAdapter(nn.Module):
         dct_kernel_size (int): DCT卷积核大小
         dct_groups (int): DCT分组卷积的组数
         freq_dim (int): 频率维度，默认为-1表示特征向量的最后一个维度
+        time_steps (int): 原始时间步长，用于正确拆分序列
+        freq_bins (int): 原始频率分量数，用于正确拆分序列
     """
     def __init__(self, in_features, mlp_ratio=0.25, act_layer='gelu',
-                 adapter_scalar=1,
+                 adapter_scalar=1, time_steps=None, freq_bins=None,
                 **kwargs):
         super().__init__()
         hidden_features = int(in_features * mlp_ratio)
@@ -201,6 +203,10 @@ class DCTAdapter(nn.Module):
         # 残差连接前的层归一化
         self.norm = nn.LayerNorm(in_features)
         
+        # 保存原始时间步长和频率分量数
+        self.time_steps = time_steps
+        self.freq_bins = freq_bins
+        
         self.init_weights()
         
     def init_weights(self):
@@ -214,12 +220,25 @@ class DCTAdapter(nn.Module):
         """应用DCT卷积操作提取时频域率特征
         Args:
             x: 输入张量，形状为 [batch_size, seq_len, in_features] 其中 N = T * F
+            hw_shapes: 可选的(高度,宽度)元组，用于指定空间维度
         Returns:
             时频域率增强的特征张量
         """
         B, N, C = x.shape
 
-        h, w = hw_shapes = (int(math.sqrt(N)), int(math.sqrt(N)))
+        # 优先使用保存的原始时间步长和频率分量数
+        if self.time_steps is not None and self.freq_bins is not None:
+            # 使用真实的T和F
+            h, w = self.freq_bins, self.time_steps
+            print(f"DCTAdapter: 使用真实的T和F - 时间步长: {w}, 频率分量: {h}")
+        elif hw_shapes is not None:
+            # 使用传入的hw_shapes
+            h, w = hw_shapes
+            print(f"DCTAdapter: 使用传入的hw_shapes - 高度: {h}, 宽度: {w}")
+        else:
+            # 回退到sqrt方式
+            h, w = int(math.sqrt(N)), int(math.sqrt(N))
+            print(f"DCTAdapter: 回退到sqrt方式 - 高度: {h}, 宽度: {w}")
 
         x = x.reshape(B, h, w, C).permute(0, 3, 1, 2) 
         dct_output = dct.dct_2d(x, norm='ortho') # DCT-II with orthogonal normalization

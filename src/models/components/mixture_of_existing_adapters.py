@@ -81,8 +81,6 @@ class MixtureOfExistingAdapters(nn.Module):
         """
         if expert_type == 'dct':
             return DCTAdapter(in_features=in_features, **kwargs)
-        elif expert_type == 'frequency':
-            return DCTFrequencyAdapter(in_features=in_features, **kwargs)
         elif expert_type == 'adapter':
             return Adapter(in_features=in_features, **kwargs)
         elif expert_type == 'SEAdapter':
